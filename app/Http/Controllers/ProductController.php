@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Cache;
 use App\Models\Product;
 use Illuminate\Http\Request;
 
@@ -12,7 +13,10 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $products = Product::with('user')->get();
+        $products = Cache::remember('all_products', 3600, function() {
+            return Product::with('user')->get();
+        });
+    
         return view('products.index', compact('products'));
     }
 
@@ -42,6 +46,10 @@ class ProductController extends Controller
             'user_id' => auth()->id(),
         ]);
 
+        // Invalidate related caches
+        Cache::forget('all_products');
+        Cache::forget('admin_products');
+
         return redirect()->route('admin.products.index')->with('success', 'Product created successfully!');
     }
 
@@ -50,6 +58,11 @@ class ProductController extends Controller
      */
     public function show(Product $product)
     {
+    // Cache individual product for 60 minutes
+        $product = Cache::remember('product_' . $product->id, 3600, function() use ($product) {
+            return $product->load('user');
+        });
+        
         return view('products.show', compact('product'));
     }
 
@@ -74,6 +87,11 @@ class ProductController extends Controller
 
         $product->update($validated);
 
+        // Invalidate related caches
+        Cache::forget('all_products');
+        Cache::forget('admin_products');
+        Cache::forget('product_' . $product->id);
+
         return redirect()->route('admin.products.index')->with('success', 'Product updated successfully!');
     }
 
@@ -83,15 +101,22 @@ class ProductController extends Controller
     public function destroy(Product $product)
     {
         $product->delete();
+        Cache::forget('all_products');
+        Cache::forget('admin_products');
+        Cache::forget('product_' . $product->id);
+
         return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully!');
     }
-
     /**
      * Display admin product listing
      */
     public function adminIndex()
     {
-        $products = Product::all();
+    // Cache for 30 minutes
+        $products = Cache::remember('admin_products', 1800, function() {
+            return Product::all();
+        });
+        
         return view('admin.products.index', compact('products'));
     }
 }
