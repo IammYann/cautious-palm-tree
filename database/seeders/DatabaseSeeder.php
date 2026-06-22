@@ -17,5 +17,10 @@ class DatabaseSeeder extends Seeder
     {
         // Create admin user
         $this->call(AdminUserSeeder::class);
+        
+        $this->call([
+            ProductSeeder::class,
+        ]);
+
     }
 }
