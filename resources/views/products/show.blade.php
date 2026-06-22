@@ -66,6 +66,40 @@
         line-height: 1.3;
     }
 
+    .detail-ratings {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 13px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 15px;
+    }
+
+    .rating-stars {
+        color: #faca51;
+        display: flex;
+        gap: 2px;
+    }
+
+    .rating-stars svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .rating-link {
+        color: #1a9cb4;
+    }
+
+    .seller-brand-info {
+        font-size: 13px;
+        color: var(--grey-color);
+    }
+
+    .seller-brand-info strong {
+        color: #212121;
+    }
+
     /* Price Section */
     .price-box {
         background-color: #fafafa;
@@ -78,6 +112,25 @@
         font-size: 30px;
         color: var(--primary-color);
         font-weight: 500;
+        margin-bottom: 5px;
+    }
+
+    .discount-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .old-price {
+        font-size: 14px;
+        color: var(--light-grey);
+        text-decoration: line-through;
+    }
+
+    .discount-badge {
+        font-size: 12px;
+        font-weight: 700;
+        color: #212121;
     }
 
     /* Quantity and Buy Section */
@@ -142,7 +195,7 @@
         font-weight: 700;
     }
 
-    .btn-buy-now:hover {
+    /* .btn-buy-now:hover {
         background-color: #f59f00;
     }
 
@@ -157,7 +210,7 @@
 
     .btn-add-cart:hover {
         background-color: var(--primary-hover);
-    }
+    } */
 
     /* Description Section */
     .description-box {
@@ -208,12 +261,28 @@
     <div class="details-column">
         <h1 class="detail-title">{{ $product->name }}</h1>
 
-        <div style="font-size: 13px; color: var(--grey-color); margin-bottom: 15px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px;">
-            Posted by: <strong style="color: #212121;">{{ $product->user->name }}</strong>
+        <div class="detail-ratings">
+            <div class="rating-stars">
+                @for ($i = 0; $i < 5; $i++)
+                    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2L9.19 8.63L2 9.24l5.46 4.73L5.82 21z"/></svg>
+                @endfor
+            </div>
+            <a href="#" class="rating-link">34 Ratings</a>
+            <span style="color: #ccc;">|</span>
+            <span class="seller-brand-info">Posted by: <strong>{{ $product->user->name }}</strong></span>
         </div>
+
+        @php
+            $discountPercent = 25;
+            $oldPrice = $product->price * (1 + ($discountPercent / 100));
+        @endphp
 
         <div class="price-box">
             <div class="main-price">Rs. {{ number_format($product->price, 2) }}</div>
+            {{-- <div class="discount-line">
+                <span class="old-price">Rs. {{ number_format($oldPrice, 2) }}</span>
+                <span class="discount-badge">-{{ $discountPercent }}%</span>
+            </div> --}}
         </div>
 
         <div class="quantity-section">
@@ -225,10 +294,10 @@
             </div>
         </div>
 
-        <div class="actions-section">
+        {{-- <div class="actions-section">
             <button class="btn btn-buy-now" onclick="alert('Order Placed Successfully (Mock Checkout)!')">Buy Now</button>
             <button class="btn btn-add-cart" onclick="alert('Added to Cart!')">Add to Cart</button>
-        </div>
+        </div> --}}
 
         <div class="description-box">
             <h3>Product Details of {{ $product->name }}</h3>

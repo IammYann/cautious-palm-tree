@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Events\UserRegistered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +39,8 @@ class RegisterController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => 'user', // Auto-assign as user
         ]);
+
+        UserRegistered::dispatch($user);
 
         // Log the user in
         Auth::login($user);
