@@ -2,7 +2,7 @@
 <html>
 <head>
     <style>
-        body {
+        /* body {
             font-family: Arial, sans-serif;
             line-height: 1.6;
             color: #333;
@@ -45,13 +45,13 @@
             border-top: 1px solid #ddd;
             font-size: 12px;
             color: #666;
-        }
+        } */
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to Our Shop! 🎉</h1>
+            <h1>Welcome to Our Shop!</h1>
         </div>
 
         <div class="content">
@@ -65,15 +65,13 @@
 
             <h3>What You Can Do Now:</h3>
             <ul>
-                <li>✅ Browse our amazing products</li>
-                <li>✅ View detailed product information</li>
-                <li>✅ Manage your profile</li>
-                <li>✅ Keep track of your account</li>
+                <li>Browse our amazing products</li>
+                <li>View detailed product information</li>
+                <li>Manage your profile</li>
+                <li>Keep track of your account</li>
             </ul>
 
-            <p>
-                <a href="{{ route('products.index') }}" class="button">View Our Products</a>
-            </p>
+            
 
             <h3>Need Help?</h3>
             <p>If you have any questions or need assistance, feel free to contact our support team.</p>
@@ -85,7 +83,7 @@
         </div>
 
         <div class="footer">
-            <p>© {{ date('Y') }} Our Shop. All rights reserved.</p>
+            <p>© {{ date('Y-m-d') }} Our Shop. All rights reserved.</p>
             <p>This is an automated email. Please do not reply directly to this message.</p>
         </div>
     </div>

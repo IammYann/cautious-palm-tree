@@ -31,12 +31,3 @@ class SendRegistrationEmail implements ShouldQueue
         });
     }
 }
-class SendWelcomeEmail
-{
-    public function handle(UserRegistered $event)
-    {
-        Log::info('Listener is working!', [
-            'user' => $event->user->email
-        ]);
-    }
-}
