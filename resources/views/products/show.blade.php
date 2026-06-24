@@ -3,308 +3,82 @@
 @section('title', $product->name)
 
 @section('content')
-<style>
-    .product-view-container {
-        display: grid;
-        grid-template-columns: 450px 1fr;
-        gap: 20px;
-        background: var(--white);
-        padding: 25px;
-        border-radius: 4px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
+<div style="background: white; padding: 2rem; border-radius: 8px;">
+    <h1>{{ $product->name }}</h1>
 
-    /* Left Gallery Column */
-    .gallery-column {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
+    <div style="margin: 2rem 0; padding: 2rem; background: #f9f9f9; border-left: 4px solid #3498db;">
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+            <strong>Description:</strong><br>
+            {{ $product->description }}
+        </p>
 
-    .main-image-box {
-        width: 100%;
-        padding-top: 100%; /* 1:1 square ratio */
-        background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
-        position: relative;
-        border-radius: 4px;
-        border: 1px solid var(--border-color);
-        overflow: hidden;
-    }
+        <p style="font-size: 1.8rem; color: #27ae60; font-weight: bold; margin-bottom: 1rem;">
+            Price: Rs. {{ number_format($product->price, 2) }}
+        </p>
 
-    .main-image-placeholder {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        color: var(--light-grey);
-    }
+        <p style="color: #7f8c8d;">
+            <strong>Posted by:</strong> {{ $product->user->name }}
+        </p>
 
-    .main-image-placeholder svg {
-        width: 80px;
-        height: 80px;
-        color: var(--primary-color);
-        margin-bottom: 12px;
-        opacity: 0.8;
-    }
-
-    /* Right Details Column */
-    .details-column {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .detail-title {
-        font-size: 22px;
-        font-weight: 500;
-        color: #212121;
-        margin-bottom: 10px;
-        line-height: 1.3;
-    }
-
-    .detail-ratings {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        font-size: 13px;
-        margin-bottom: 15px;
-        border-bottom: 1px solid #f0f0f0;
-        padding-bottom: 15px;
-    }
-
-    .rating-stars {
-        color: #faca51;
-        display: flex;
-        gap: 2px;
-    }
-
-    .rating-stars svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    .rating-link {
-        color: #1a9cb4;
-    }
-
-    .seller-brand-info {
-        font-size: 13px;
-        color: var(--grey-color);
-    }
-
-    .seller-brand-info strong {
-        color: #212121;
-    }
-
-    /* Price Section */
-    .price-box {
-        background-color: #fafafa;
-        padding: 15px 20px;
-        margin-bottom: 25px;
-        border-radius: 4px;
-    }
-
-    .main-price {
-        font-size: 30px;
-        color: var(--primary-color);
-        font-weight: 500;
-        margin-bottom: 5px;
-    }
-
-    .discount-line {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .old-price {
-        font-size: 14px;
-        color: var(--light-grey);
-        text-decoration: line-through;
-    }
-
-    .discount-badge {
-        font-size: 12px;
-        font-weight: 700;
-        color: #212121;
-    }
-
-    /* Quantity and Buy Section */
-    .quantity-section {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        margin-bottom: 25px;
-        font-size: 14px;
-        color: var(--grey-color);
-    }
-
-    .quantity-selector {
-        display: flex;
-        align-items: center;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        overflow: hidden;
-        background: #fff;
-    }
-
-    .qty-btn {
-        width: 32px;
-        height: 32px;
-        background: #fafafa;
-        border: none;
-        font-size: 18px;
-        font-weight: bold;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .qty-btn:hover {
-        background: #f0f0f0;
-    }
-
-    .qty-input {
-        width: 45px;
-        height: 32px;
-        text-align: center;
-        border: none;
-        border-left: 1px solid var(--border-color);
-        border-right: 1px solid var(--border-color);
-        font-size: 14px;
-        outline: none;
-    }
-
-    .actions-section {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 30px;
-    }
-
-    .btn-buy-now {
-        flex: 1;
-        background-color: #ffb300;
-        color: var(--white);
-        font-size: 16px;
-        height: 48px;
-        font-weight: 700;
-    }
-
-    /* .btn-buy-now:hover {
-        background-color: #f59f00;
-    }
-
-    .btn-add-cart {
-        flex: 1;
-        background-color: var(--primary-color);
-        color: var(--white);
-        font-size: 16px;
-        height: 48px;
-        font-weight: 700;
-    }
-
-    .btn-add-cart:hover {
-        background-color: var(--primary-hover);
-    } */
-
-    /* Description Section */
-    .description-box {
-        border-top: 1px solid #f0f0f0;
-        padding-top: 20px;
-    }
-
-    .description-box h3 {
-        font-size: 16px;
-        font-weight: 500;
-        color: #212121;
-        margin-bottom: 12px;
-        text-transform: uppercase;
-    }
-
-    .description-text {
-        font-size: 14px;
-        color: #424242;
-        line-height: 1.7;
-    }
-
-    .back-btn-container {
-        margin-top: 20px;
-    }
-
-    @media (max-width: 768px) {
-        .product-view-container {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
-<div class="product-view-container">
-    <!-- Left Column -->
-    <div class="gallery-column">
-        <div class="main-image-box">
-            <div class="main-image-placeholder">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.5h-2v-2h2zm0-4h-2v-4h2z"/></svg>
-                <span style="font-size: 16px; font-weight: 500; color: var(--grey-color);">{{ $product->name }}</span>
-            </div>
-        </div>
-        <div class="back-btn-container">
-            <a href="{{ route('products.index') }}" class="btn btn-outline" style="width: 100%;">← Back to Products</a>
-        </div>
+        <p style="color: #95a5a6; font-size: 0.9rem;">
+            <strong>Date:</strong> {{ $product->created_at->format('M d, Y') }}
+        </p>
     </div>
 
-    <!-- Right Column -->
-    <div class="details-column">
-        <h1 class="detail-title">{{ $product->name }}</h1>
-
-        <div class="detail-ratings">
-            <div class="rating-stars">
-                @for ($i = 0; $i < 5; $i++)
-                    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2L9.19 8.63L2 9.24l5.46 4.73L5.82 21z"/></svg>
-                @endfor
+    {{-- eSewa Purchase Section --}}
+    <div style="background: linear-gradient(135deg, #f0faf0, #e8f5e9); border: 2px solid #60bb46; border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+            <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #60bb46, #4a9e35); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-weight: bold; font-size: 1rem;">e</span>
             </div>
-            <a href="#" class="rating-link">34 Ratings</a>
-            <span style="color: #ccc;">|</span>
-            <span class="seller-brand-info">Posted by: <strong>{{ $product->user->name }}</strong></span>
+            <h3 style="color: #2c3e50; margin: 0;">Pay with eSewa</h3>
         </div>
 
-        @php
-            $discountPercent = 25;
-            $oldPrice = $product->price * (1 + ($discountPercent / 100));
-        @endphp
-
-        <div class="price-box">
-            <div class="main-price">Rs. {{ number_format($product->price, 2) }}</div>
-            {{-- <div class="discount-line">
-                <span class="old-price">Rs. {{ number_format($oldPrice, 2) }}</span>
-                <span class="discount-badge">-{{ $discountPercent }}%</span>
-            </div> --}}
-        </div>
-
-        <div class="quantity-section">
-            <span>Quantity</span>
-            <div class="quantity-selector">
-                <button type="button" class="qty-btn" onclick="let input = document.getElementById('qty'); if(input.value > 1) input.value--">-</button>
-                <input type="text" id="qty" class="qty-input" value="1" readonly>
-                <button type="button" class="qty-btn" onclick="let input = document.getElementById('qty'); input.value++">+</button>
+        @if(!$product->is_available)
+            <div style="background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; padding: 1rem; border-radius: 8px; font-weight: 600; text-align: center; font-size: 1.1rem;">
+                ❌ SOLD OUT (This product is no longer available)
             </div>
-        </div>
-
-        {{-- <div class="actions-section">
-            <button class="btn btn-buy-now" onclick="alert('Order Placed Successfully (Mock Checkout)!')">Buy Now</button>
-            <button class="btn btn-add-cart" onclick="alert('Added to Cart!')">Add to Cart</button>
-        </div> --}}
-
-        <div class="description-box">
-            <h3>Product Details of {{ $product->name }}</h3>
-            <div class="description-text">
-                {!! nl2br(e($product->description)) !!}
-            </div>
-        </div>
+        @else
+            @auth
+                <form action="{{ route('payment.esewa.initiate', $product->id) }}" method="POST" style="background: none; box-shadow: none; padding: 0; margin: 0;">
+                    @csrf
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <button type="submit" id="esewa-buy-btn" style="
+                            background: linear-gradient(135deg, #60bb46, #4a9e35);
+                            color: white;
+                            border: none;
+                            padding: 0.75rem 2rem;
+                            border-radius: 8px;
+                            font-size: 1.1rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 4px 15px rgba(96, 187, 70, 0.3);
+                            display: flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(96, 187, 70, 0.4)'"
+                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(96, 187, 70, 0.3)'">
+                            🛒 Buy with eSewa — Rs. {{ number_format($product->price, 2) }}
+                        </button>
+                    </div>
+                </form>
+            @else
+                <p style="color: #7f8c8d; margin-bottom: 1rem;">You need to be logged in to purchase this product.</p>
+                <a href="{{ route('login') }}" class="btn btn-success" style="
+                    background: linear-gradient(135deg, #60bb46, #4a9e35);
+                    padding: 0.75rem 2rem;
+                    border-radius: 8px;
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    box-shadow: 0 4px 15px rgba(96, 187, 70, 0.3);
+                ">Login to Buy</a>
+            @endauth
+        @endif
     </div>
+
+    <a href="{{ route('products.index') }}" class="btn">← Back to Products</a>
+    
+    
 </div>
 @endsection

@@ -14,7 +14,7 @@ class ProductController extends Controller
     public function index()
     {
         $products = Cache::remember('all_products', 3600, function() {
-            return Product::with('user')->get();
+            return Product::where('is_available', true)->with('user')->get();
         });
     
         return view('products.index', compact('products'));

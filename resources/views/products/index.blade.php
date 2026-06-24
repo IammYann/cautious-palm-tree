@@ -3,7 +3,7 @@
 @section('title', 'Products')
 
 @section('content')
-<h1>Available Products</h1>
+<h1>🛍️ Available Products</h1>
 
 @if ($products->count() > 0)
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem;">

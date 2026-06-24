@@ -79,9 +79,10 @@
             <thead>
                 <tr>
                     <th style="width: 25%;">Product Name</th>
-                    <th style="width: 45%;">Description</th>
+                    <th style="width: 35%;">Description</th>
                     <th style="width: 15%; text-align: right;">Price</th>
-                    <th style="width: 15%; text-align: center;">Actions</th>
+                    <th style="width: 13%; text-align: center;">Status</th>
+                    <th style="width: 12%; text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -90,6 +91,13 @@
                         <td style="font-weight: 500;">{{ $product->name }}</td>
                         <td style="color: var(--grey-color);">{{ Str::limit($product->description, 80) }}</td>
                         <td class="price-text" style="text-align: right;">Rs. {{ number_format($product->price, 2) }}</td>
+                        <td style="text-align: center;">
+                            @if($product->is_available)
+                                <span style="background: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; border: 1px solid #c8e6c9;">Available</span>
+                            @else
+                                <span style="background: #ffebee; color: #c62828; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; border: 1px solid #ffcdd2;">Sold</span>
+                            @endif
+                        </td>
                         <td>
                             <div class="actions-cell">
                                 <a href="{{ route('admin.products.edit', $product->id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Edit</a>

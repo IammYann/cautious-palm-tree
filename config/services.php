@@ -34,5 +34,12 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'esewa' => [
+        'merchant_code' => env('ESEWA_MERCHANT_CODE'),
+        'password' => env('ESEWA_PASSWORD'),
+        'sandbox' => env('ESEWA_SANDBOX', true),
+        'success_url' => env('ESEWA_SUCCESS_URL'),
+        'failure_url' => env('ESEWA_FAILURE_URL'),
+    ],
 
 ];

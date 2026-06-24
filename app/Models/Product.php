@@ -14,6 +14,11 @@ class Product extends Model
         'description',
         'price',
         'user_id',
+        'is_available',
+    ];
+
+    protected $casts = [
+        'is_available' => 'boolean',
     ];
 
     /**
@@ -22,5 +27,10 @@ class Product extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
     }
 }
