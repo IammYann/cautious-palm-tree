@@ -134,6 +134,10 @@ class PurchaseController extends Controller
         if ($responseData['status'] === 'COMPLETE') {
             $order->markAsCompleted($responseData['transaction_code'] ?? $transactionUuid);
             Log::info('Payment completed', ['order_id' => $order->id, 'status' => $responseData['status']]);
+            
+            // Dispatch event to send emails to buyer and seller
+            \App\Events\productpurchase::dispatch($order);
+            
             return redirect()->route('purchase.invoice', $order)->with('success', 'Payment successful! Thank you for your purchase.');
         }
 

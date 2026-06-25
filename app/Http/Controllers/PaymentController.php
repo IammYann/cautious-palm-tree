@@ -154,6 +154,9 @@ class PaymentController extends Controller
             \Illuminate\Support\Facades\Cache::forget('admin_products');
             \Illuminate\Support\Facades\Cache::forget('product_' . $order->product_id);
 
+            // Dispatch event to send emails to buyer and seller
+            \App\Events\productpurchase::dispatch($order);
+
             return view('payment.success', [
                 'order' => $order->load('product'),
                 'transactionCode' => $transactionCode,

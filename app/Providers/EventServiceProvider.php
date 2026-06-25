@@ -14,6 +14,9 @@ class EventServiceProvider extends ServiceProvider
             \App\Listeners\SendRegistrationEmail::class,
             \App\Listeners\LogRegistration::class,
         ],
+        \App\Events\productpurchase::class => [
+            \App\Listeners\SendPurchaseNotificationEmail::class,
+        ],
     ];
 
     /**
