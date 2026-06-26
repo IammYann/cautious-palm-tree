@@ -19,16 +19,6 @@ class PurchaseThankYouMail extends Mailable
     public $order;
 
     /**
-     * The number of times the job may be attempted.
-     */
-    public $tries = 5;
-
-    /**
-     * The number of seconds to wait before retrying the job.
-     */
-    public $backoff = 5;
-
-    /**
      * Create a new message instance.
      */
     public function __construct($buyer, $product, $order)
@@ -53,10 +43,6 @@ class PurchaseThankYouMail extends Mailable
      */
     public function content(): Content
     {
-        // Add a 2-second sleep to prevent Mailtrap "Too many emails per second" error
-        // when queue worker processes multiple mail jobs in a row.
-        sleep(2);
-
         return new Content(
             view: 'emails.purchase-thank-you',
         );

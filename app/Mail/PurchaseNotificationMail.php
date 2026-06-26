@@ -20,16 +20,6 @@ class PurchaseNotificationMail extends Mailable
     public $order;
 
     /**
-     * The number of times the job may be attempted.
-     */
-    public $tries = 5;
-
-    /**
-     * The number of seconds to wait before retrying the job.
-     */
-    public $backoff = 5;
-
-    /**
      * Create a new message instance.
      */
     public function __construct($seller, $buyer, $product, $order)
@@ -55,10 +45,6 @@ class PurchaseNotificationMail extends Mailable
      */
     public function content(): Content
     {
-        // Add a 2-second sleep to prevent Mailtrap "Too many emails per second" error
-        // when queue worker processes multiple accumulated mail jobs back-to-back.
-        sleep(2);
-
         return new Content(
             view: 'emails.purchase-notification',
         );

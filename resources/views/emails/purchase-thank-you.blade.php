@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <style>
+    {{-- <style>
         body { font-family: Arial, sans-serif; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #f8f9fa; padding: 20px; border-radius: 5px; }
@@ -9,7 +9,7 @@
         .footer { text-align: center; color: #666; font-size: 12px; padding-top: 20px; border-top: 1px solid #ddd; }
         ul { list-style: none; padding: 0; }
         li { padding: 8px 0; border-bottom: 1px solid #eee; }
-    </style>
+    </style> --}}
 </head>
 <body>
     <div class="container">

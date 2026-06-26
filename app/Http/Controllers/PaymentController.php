@@ -80,6 +80,16 @@ class PaymentController extends Controller
 
         $paymentUrl = config('esewa.payment_url');
 
+        \Illuminate\Support\Facades\Log::info('eSewa payment initiated', [
+            'order_id'       => $order->id,
+            'success_url'    => $paymentData['success_url'],
+            'failure_url'    => $paymentData['failure_url'],
+            'total_amount'   => $formattedTotalAmount,
+            'transaction_uuid' => $transactionUuid,
+            'signature'      => $signature,
+            'payment_url'    => $paymentUrl,
+        ]);
+
         return view('payment.esewa-form', compact('paymentData', 'paymentUrl', 'product'));
     }
 
@@ -90,7 +100,13 @@ class PaymentController extends Controller
     {
         $encodedData = $request->query('data');
 
+        \Illuminate\Support\Facades\Log::info('eSewa success callback received', [
+            'has_data' => !empty($encodedData),
+            'raw_data' => $encodedData,
+        ]);
+
         if (!$encodedData) {
+            \Illuminate\Support\Facades\Log::warning('eSewa callback: no data parameter');
             return redirect()->route('products.index')
                 ->with('error', 'Invalid payment response.');
         }
@@ -98,7 +114,12 @@ class PaymentController extends Controller
         // Decode the Base64 response
         $decodedData = json_decode(base64_decode($encodedData), true);
 
+        \Illuminate\Support\Facades\Log::info('eSewa decoded response', [
+            'decoded' => $decodedData,
+        ]);
+
         if (!$decodedData) {
+            \Illuminate\Support\Facades\Log::warning('eSewa callback: failed to decode data');
             return redirect()->route('products.index')
                 ->with('error', 'Could not decode payment response.');
         }
@@ -121,7 +142,15 @@ class PaymentController extends Controller
             $signatureMessage = implode(',', $signatureParts);
             $expectedSignature = $this->generateSignature($signatureMessage);
 
+            \Illuminate\Support\Facades\Log::info('eSewa signature check', [
+                'message' => $signatureMessage,
+                'expected' => $expectedSignature,
+                'received' => $responseSignature,
+                'match' => $expectedSignature === $responseSignature,
+            ]);
+
             if ($expectedSignature !== $responseSignature) {
+                \Illuminate\Support\Facades\Log::error('eSewa signature MISMATCH - payment rejected');
                 return redirect()->route('products.index')
                     ->with('error', 'Payment verification failed. Signature mismatch.');
             }
@@ -130,13 +159,29 @@ class PaymentController extends Controller
         // Find the order by transaction_uuid
         $order = Order::where('transaction_uuid', $transactionUuid)->first();
 
+        \Illuminate\Support\Facades\Log::info('eSewa order lookup', [
+            'transaction_uuid' => $transactionUuid,
+            'order_found' => !is_null($order),
+            'order_id' => $order?->id,
+            'order_amount' => $order?->amount,
+            'esewa_total_amount' => $totalAmount,
+            'status' => $status,
+        ]);
+
         if (!$order) {
+            \Illuminate\Support\Facades\Log::error('eSewa order not found', ['uuid' => $transactionUuid]);
             return redirect()->route('products.index')
                 ->with('error', 'Order not found for this transaction.');
         }
 
         // Verify the amount matches
-        if ((float) $totalAmount != (float) $order->amount) {
+        // Strip commas from eSewa amount (e.g. "1,299.21" -> "1299.21")
+        $cleanedTotalAmount = str_replace(',', '', $totalAmount);
+        if ((float) $cleanedTotalAmount != (float) $order->amount) {
+            \Illuminate\Support\Facades\Log::error('eSewa amount MISMATCH', [
+                'esewa_amount' => $cleanedTotalAmount,
+                'order_amount' => $order->amount,
+            ]);
             $order->markAsFailed();
             return redirect()->route('products.index')
                 ->with('error', 'Payment amount mismatch. Potential fraud detected.');
@@ -157,12 +202,18 @@ class PaymentController extends Controller
             // Dispatch event to send emails to buyer and seller
             \App\Events\productpurchase::dispatch($order);
 
+            \Illuminate\Support\Facades\Log::info('eSewa payment completed successfully', [
+                'order_id' => $order->id,
+                'transaction_code' => $transactionCode,
+            ]);
+
             return view('payment.success', [
                 'order' => $order->load('product'),
                 'transactionCode' => $transactionCode,
             ]);
         }
 
+        \Illuminate\Support\Facades\Log::warning('eSewa payment status not COMPLETE', ['status' => $status]);
         return redirect()->route('products.index')
             ->with('error', 'Payment was not completed.');
     }
@@ -172,11 +223,18 @@ class PaymentController extends Controller
      */
     public function failure(Request $request)
     {
-        // Try to extract transaction_uuid from the response if available
+        // Log ALL incoming data from eSewa failure callback
         $encodedData = $request->query('data');
+        $decodedData = $encodedData ? json_decode(base64_decode($encodedData), true) : null;
 
-        if ($encodedData) {
-            $decodedData = json_decode(base64_decode($encodedData), true);
+        \Illuminate\Support\Facades\Log::warning('eSewa FAILURE callback received', [
+            'has_data'    => !empty($encodedData),
+            'raw_data'    => $encodedData,
+            'decoded'     => $decodedData,
+            'all_query'   => $request->query(),
+        ]);
+
+        if ($decodedData) {
             $transactionUuid = $decodedData['transaction_uuid'] ?? null;
 
             if ($transactionUuid) {
