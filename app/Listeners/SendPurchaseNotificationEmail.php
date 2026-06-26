@@ -11,15 +11,6 @@ use App\Mail\PurchaseNotificationMail;
 class SendPurchaseNotificationEmail implements ShouldQueue
 {
     use InteractsWithQueue;
-
-    /**
-     * Handle the event.
-     *
-     * Send two emails:
-     *   1. Buyer thank-you  → dispatched immediately to the queue.
-     *   2. Seller notification → delayed by 5 seconds so Mailtrap's
-     *      "1 email per second" free-tier limit is never hit.
-     */
     public function handle(object $event): void
     {
         $order   = $event->order;
