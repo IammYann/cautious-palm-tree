@@ -6,6 +6,9 @@ use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class PaymentController extends Controller
 {
@@ -247,5 +250,186 @@ class PaymentController extends Controller
 
         return redirect()->route('products.index')
             ->with('error', 'Payment was cancelled or failed. Please try again.');
+    }
+
+    /**
+     * Initiate Khalti payment for a product
+     */
+    public function khaltiInitiate(Request $request, Product $product)
+    {
+        // Check if the product is available
+        if (!$product->is_available) {
+            return redirect()->route('products.index')
+                ->with('error', 'This product is no longer available for purchase.');
+        }
+
+        $quantity = 1;
+        $amount = $product->price * $quantity;
+        $totalAmount = $amount; 
+
+        // Create a pending order
+        $order = Order::create([
+            'user_id' => auth()->id(),
+            'product_id' => $product->id,
+            'amount' => $totalAmount,
+            'quantity' => $quantity,
+            'status' => 'pending',
+        ]);
+
+        // Generate unique transaction UUID
+        $transactionUuid = $order->id . '-' . now()->format('ymdHis');
+        $order->update(['transaction_uuid' => $transactionUuid]);
+
+        $amountInPaisa = (int) round($totalAmount * 100);
+        $baseUrl = config('khalti.base_url');
+        $secretKey = trim((string) config('khalti.secret_key'));
+
+        if (!$secretKey || str_contains(strtolower($secretKey), 'default') || str_contains(strtolower($secretKey), 'your_')) {
+            Log::error('Khalti payment initiation aborted: secret key is missing or still a placeholder.', [
+                'secret_key' => $secretKey,
+            ]);
+
+            $order->markAsFailed();
+            return redirect()->route('products.index')
+                ->with('error', 'Khalti is not configured correctly. Please set a real KHALTI_SECRET_KEY in your .env file.');
+        }
+
+        $response = Http::asJson()
+            ->withHeaders([
+                'Authorization' => 'key ' . $secretKey,
+            ])
+            ->timeout(20)
+            ->post($baseUrl . '/epayment/initiate/', [
+                'return_url' => route('payment.khalti.callback'),
+                'website_url' => config('app.url'),
+                'amount' => $amountInPaisa,
+                'purchase_order_id' => $transactionUuid,
+                'purchase_order_name' => substr($product->name, 0, 99),
+                'customer_info' => [
+                    'name' => auth()->user()->name ?? 'Guest',
+                    'email' => auth()->user()->email ?? 'guest@example.com',
+                    'phone' => '9800000000',
+                ]
+            ]);
+
+        $responseBody = $response->json();
+
+        Log::info('Khalti initiation response', [
+            'status' => $response->status(),
+            'body' => $responseBody,
+        ]);
+
+        if ($response->successful()) {
+            $data = $responseBody;
+            if (isset($data['payment_url'])) {
+                // Store pidx on the order
+                $order->update(['transaction_id' => $data['pidx'] ?? null]);
+                return redirect()->away($data['payment_url']);
+            }
+        }
+
+        $order->markAsFailed();
+        $detail = data_get($responseBody, 'detail', 'Unable to initiate Khalti payment. Please try again.');
+
+        return redirect()->route('products.index')
+            ->with('error', 'Khalti payment initiation failed: ' . $detail);
+    }
+
+    /**
+     * Handle successful payment callback from Khalti
+     */
+    public function khaltiCallback(Request $request)
+    {
+        $pidx = $request->query('pidx');
+        $status = $request->query('status');
+        $transactionUuid = $request->query('purchase_order_id');
+        $transactionId = $request->query('transaction_id');
+
+        Log::info('Khalti callback received', [
+            'pidx' => $pidx,
+            'status' => $status,
+            'transaction_uuid' => $transactionUuid,
+            'query' => $request->query(),
+        ]);
+
+        if (!$pidx) {
+            return redirect()->route('products.index')
+                ->with('error', 'Invalid payment response from Khalti.');
+        }
+
+        // Call lookup API to verify the transaction status
+        $baseUrl = config('khalti.base_url');
+        $secretKey = config('khalti.secret_key');
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Key ' . $secretKey,
+            'Content-Type' => 'application/json',
+        ])->post($baseUrl . '/epayment/lookup/', [
+            'pidx' => $pidx,
+        ]);
+
+        Log::info('Khalti lookup verification response', [
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
+
+        if ($response->successful()) {
+            $data = $response->json();
+            
+            // Find order by transaction_uuid
+            $order = Order::where('transaction_uuid', $transactionUuid)->first();
+            
+            if (!$order) {
+                // Try finding by pidx stored in transaction_id
+                $order = Order::where('transaction_id', $pidx)->first();
+            }
+
+            if (!$order) {
+                return redirect()->route('products.index')
+                    ->with('error', 'Order not found for this transaction.');
+            }
+
+            // Verify status is Completed or Complete
+            if (isset($data['status']) && (strtolower($data['status']) === 'completed' || strtolower($data['status']) === 'complete')) {
+                // Verify amount matches (convert paisa to rupees)
+                $khaltiAmount = $data['total_amount'] / 100;
+                if ((float)$khaltiAmount != (float)$order->amount) {
+                    $order->markAsFailed();
+                    return redirect()->route('products.index')
+                        ->with('error', 'Payment amount mismatch. Potential fraud detected.');
+                }
+
+                // Mark order as completed
+                $actualTxnId = $data['transaction_id'] ?? $transactionId ?? $pidx;
+                $order->markAsCompleted($actualTxnId);
+
+                // Mark product as unavailable
+                $order->product->update(['is_available' => false]);
+
+                // Clear cache
+                Cache::forget('all_products');
+                Cache::forget('admin_products');
+                Cache::forget('product_' . $order->product_id);
+
+                // Dispatch event
+                \App\Events\productpurchase::dispatch($order);
+
+                return view('payment.success', [
+                    'order' => $order->load('product'),
+                    'transactionCode' => $actualTxnId,
+                ]);
+            }
+        }
+
+        // Mark as failed if not completed
+        if (isset($transactionUuid)) {
+            $order = Order::where('transaction_uuid', $transactionUuid)->first();
+            if ($order && $order->status === 'pending') {
+                $order->markAsFailed();
+            }
+        }
+
+        return redirect()->route('products.index')
+            ->with('error', 'Khalti payment verification failed or cancelled.');
     }
 }

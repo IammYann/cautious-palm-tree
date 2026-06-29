@@ -10,10 +10,7 @@ class EventServiceProvider extends ServiceProvider
      * The event to listener mappings for the application.
      */
     protected $listen = [
-        \App\Events\UserRegistered::class => [
-            \App\Listeners\SendRegistrationEmail::class,
-            \App\Listeners\LogRegistration::class,
-        ],
+        // UserRegistered listeners are auto-discovered by Laravel in the Listeners folder
         \App\Events\productpurchase::class => [
             \App\Listeners\SendPurchaseNotificationEmail::class,
         ],

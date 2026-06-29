@@ -36,6 +36,9 @@ Route::get('/products/{product}', [ProductController::class, 'show'])->name('pro
 Route::get('/payment/esewa/success', [PaymentController::class, 'success'])->name('payment.esewa.success');
 Route::get('/payment/esewa/failure', [PaymentController::class, 'failure'])->name('payment.esewa.failure');
 
+// Khalti Payment Callbacks (no auth middleware — Khalti redirects the browser back)
+Route::get('/payment/khalti/callback', [PaymentController::class, 'khaltiCallback'])->name('payment.khalti.callback');
+
 // Authenticated Routes
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
@@ -46,6 +49,9 @@ Route::middleware('auth')->group(function () {
 
     // eSewa Payment Initiation (must be logged in to buy)
     Route::post('/payment/esewa/{product}', [PaymentController::class, 'initiate'])->name('payment.esewa.initiate');
+
+    // Khalti Payment Initiation (must be logged in to buy)
+    Route::post('/payment/khalti/{product}', [PaymentController::class, 'khaltiInitiate'])->name('payment.khalti.initiate');
 });
 
 // Admin Routes (only for admins)
