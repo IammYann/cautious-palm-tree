@@ -9,6 +9,9 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Throwable;
+use Exception;
 
 class PaymentController extends Controller
 {
@@ -33,67 +36,90 @@ class PaymentController extends Controller
                 ->with('error', 'This product is no longer available for purchase.');
         }
 
-        $quantity = 1;
-        $amount = $product->price * $quantity;
-        $taxAmount = 0;
-        $serviceCharge = 0;
-        $deliveryCharge = 0;
-        $totalAmount = $amount + $taxAmount + $serviceCharge + $deliveryCharge;
+        DB::beginTransaction();
+        try {
+            $quantity = 1;
+            $amount = $product->price * $quantity;
+            $taxAmount = 0;
+            $serviceCharge = 0;
+            $deliveryCharge = 0;
+            $totalAmount = $amount + $taxAmount + $serviceCharge + $deliveryCharge;
 
-        // Create a pending order
-        $order = Order::create([
-            'user_id' => auth()->id(),
-            'product_id' => $product->id,
-            'amount' => $totalAmount,
-            'quantity' => $quantity,
-            'status' => 'pending',
-        ]);
+            // Create a pending order
+            $order = Order::create([
+                'user_id' => auth()->id(),
+                'product_id' => $product->id,
+                'amount' => $totalAmount,
+                'quantity' => $quantity,
+                'status' => 'pending',
+            ]);
 
-        // Generate unique transaction UUID (alphanumeric and hyphen only)
-        $transactionUuid = $order->id . '-' . now()->format('ymdHis');
-        $order->update(['transaction_uuid' => $transactionUuid]);
+            // Generate unique transaction UUID (alphanumeric and hyphen only)
+            $transactionUuid = $order->id . '-' . now()->format('ymdHis');
+            $order->update(['transaction_uuid' => $transactionUuid]);
 
-        $productCode = config('esewa.merchant_code');
+            $productCode = config('esewa.merchant_code');
 
-        // eSewa requires total_amount to be formatted to 2 decimal places
-        $formattedTotalAmount = number_format($totalAmount, 2, '.', '');
-        $formattedAmount = number_format($amount, 2, '.', '');
-        $formattedTaxAmount = number_format($taxAmount, 2, '.', '');
-        $formattedServiceCharge = number_format($serviceCharge, 2, '.', '');
-        $formattedDeliveryCharge = number_format($deliveryCharge, 2, '.', '');
+            // eSewa requires total_amount to be formatted to 2 decimal places
+            $formattedTotalAmount = number_format($totalAmount, 2, '.', '');
+            $formattedAmount = number_format($amount, 2, '.', '');
+            $formattedTaxAmount = number_format($taxAmount, 2, '.', '');
+            $formattedServiceCharge = number_format($serviceCharge, 2, '.', '');
+            $formattedDeliveryCharge = number_format($deliveryCharge, 2, '.', '');
 
-        // Generate HMAC-SHA256 signature
-        // Input format: total_amount={total},transaction_uuid={uuid},product_code={code}
-        $signatureMessage = "total_amount={$formattedTotalAmount},transaction_uuid={$transactionUuid},product_code={$productCode}";
-        $signature = $this->generateSignature($signatureMessage);
+            // Generate HMAC-SHA256 signature
+            // Input format: total_amount={total},transaction_uuid={uuid},product_code={code}
+            $signatureMessage = "total_amount={$formattedTotalAmount},transaction_uuid={$transactionUuid},product_code={$productCode}";
+            $signature = $this->generateSignature($signatureMessage);
 
-        $paymentData = [
-            'amount' => $formattedAmount,
-            'tax_amount' => $formattedTaxAmount,
-            'total_amount' => $formattedTotalAmount,
-            'transaction_uuid' => $transactionUuid,
-            'product_code' => $productCode,
-            'product_service_charge' => $formattedServiceCharge,
-            'product_delivery_charge' => $formattedDeliveryCharge,
-            'success_url' => route('payment.esewa.success'),
-            'failure_url' => route('payment.esewa.failure'),
-            'signed_field_names' => 'total_amount,transaction_uuid,product_code',
-            'signature' => $signature,
-        ];
+            $paymentData = [
+                'amount' => $formattedAmount,
+                'tax_amount' => $formattedTaxAmount,
+                'total_amount' => $formattedTotalAmount,
+                'transaction_uuid' => $transactionUuid,
+                'product_code' => $productCode,
+                'product_service_charge' => $formattedServiceCharge,
+                'product_delivery_charge' => $formattedDeliveryCharge,
+                'success_url' => route('payment.esewa.success'),
+                'failure_url' => route('payment.esewa.failure'),
+                'signed_field_names' => 'total_amount,transaction_uuid,product_code',
+                'signature' => $signature,
+            ];
 
-        $paymentUrl = config('esewa.payment_url');
+            $paymentUrl = config('esewa.payment_url');
 
-        \Illuminate\Support\Facades\Log::info('eSewa payment initiated', [
-            'order_id'       => $order->id,
-            'success_url'    => $paymentData['success_url'],
-            'failure_url'    => $paymentData['failure_url'],
-            'total_amount'   => $formattedTotalAmount,
-            'transaction_uuid' => $transactionUuid,
-            'signature'      => $signature,
-            'payment_url'    => $paymentUrl,
-        ]);
+            \Illuminate\Support\Facades\Log::info('eSewa payment initiated', [
+                'order_id'       => $order->id,
+                'success_url'    => $paymentData['success_url'],
+                'failure_url'    => $paymentData['failure_url'],
+                'total_amount'   => $formattedTotalAmount,
+                'transaction_uuid' => $transactionUuid,
+                'signature'      => $signature,
+                'payment_url'    => $paymentUrl,
+            ]);
 
-        return view('payment.esewa-form', compact('paymentData', 'paymentUrl', 'product'));
+            DB::commit();
+
+            return view('payment.esewa-form', compact('paymentData', 'paymentUrl', 'product'));
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('eSewa payment initiation failed', [
+                'message' => $e->getMessage(),
+                'product_id' => $product->id,
+                'user_id' => auth()->id(),
+                'exception' => $e,
+            ]);
+            if (isset($order) && $order->exists) {
+                try {
+                    $order->markAsFailed();
+                } catch (Throwable $_) {
+                    // ignore
+                }
+            }
+
+            return redirect()->route('products.index')
+                ->with('error', 'Unable to start payment. Please try again later.');
+        }
     }
 
     /**
@@ -177,6 +203,15 @@ class PaymentController extends Controller
                 ->with('error', 'Order not found for this transaction.');
         }
 
+        // Idempotency: if order already completed, show success and skip re-processing
+        if ($order->status === 'completed') {
+            \Illuminate\Support\Facades\Log::info('eSewa callback for already completed order', ['order_id' => $order->id]);
+            return view('payment.success', [
+                'order' => $order->load('product'),
+                'transactionCode' => $transactionCode ?? $order->transaction_id ?? $order->transaction_uuid,
+            ]);
+        }
+
         // Verify the amount matches
         // Strip commas from eSewa amount (e.g. "1,299.21" -> "1299.21")
         $cleanedTotalAmount = str_replace(',', '', $totalAmount);
@@ -192,6 +227,14 @@ class PaymentController extends Controller
 
         // Mark order as completed
         if ($status === 'COMPLETE') {
+            if ($order->status !== 'pending') {
+                \Illuminate\Support\Facades\Log::info('eSewa callback received for non-pending order', ['order_id' => $order->id, 'status' => $order->status]);
+                return view('payment.success', [
+                    'order' => $order->load('product'),
+                    'transactionCode' => $transactionCode ?? $order->transaction_id ?? $order->transaction_uuid,
+                ]);
+            }
+
             $order->markAsCompleted($transactionCode);
 
             // Mark the product as unavailable (sold)
@@ -294,45 +337,60 @@ class PaymentController extends Controller
                 ->with('error', 'Khalti is not configured correctly. Please set a real KHALTI_SECRET_KEY in your .env file.');
         }
 
-        $response = Http::asJson()
-            ->withHeaders([
-                'Authorization' => 'key ' . $secretKey,
-            ])
-            ->timeout(20)
-            ->post($baseUrl . '/epayment/initiate/', [
-                'return_url' => route('payment.khalti.callback'),
-                'website_url' => config('app.url'),
-                'amount' => $amountInPaisa,
-                'purchase_order_id' => $transactionUuid,
-                'purchase_order_name' => substr($product->name, 0, 99),
-                'customer_info' => [
-                    'name' => auth()->user()->name ?? 'Guest',
-                    'email' => auth()->user()->email ?? 'guest@example.com',
-                    'phone' => '9800000000',
-                ]
+        try {
+            $response = Http::asJson()
+                ->withHeaders([
+                    'Authorization' => 'key ' . $secretKey,
+                ])
+                ->timeout(20)
+                ->post($baseUrl . '/epayment/initiate/', [
+                    'return_url' => route('payment.khalti.callback'),
+                    'website_url' => config('app.url'),
+                    'amount' => $amountInPaisa,
+                    'purchase_order_id' => $transactionUuid,
+                    'purchase_order_name' => substr($product->name, 0, 99),
+                    'customer_info' => [
+                        'name' => auth()->user()->name ?? 'Guest',
+                        'email' => auth()->user()->email ?? 'guest@example.com',
+                        'phone' => '9800000000',
+                    ]
+                ]);
+
+            $responseBody = $response->json();
+
+            Log::info('Khalti initiation response', [
+                'status' => $response->status(),
+                'body' => $responseBody,
             ]);
 
-        $responseBody = $response->json();
-
-        Log::info('Khalti initiation response', [
-            'status' => $response->status(),
-            'body' => $responseBody,
-        ]);
-
-        if ($response->successful()) {
-            $data = $responseBody;
-            if (isset($data['payment_url'])) {
-                // Store pidx on the order
-                $order->update(['transaction_id' => $data['pidx'] ?? null]);
-                return redirect()->away($data['payment_url']);
+            if ($response->successful()) {
+                $data = $responseBody;
+                if (isset($data['payment_url'])) {
+                    // Store pidx on the order
+                    $order->update(['transaction_id' => $data['pidx'] ?? null]);
+                    return redirect()->away($data['payment_url']);
+                }
             }
+
+            $order->markAsFailed();
+            $detail = data_get($responseBody, 'detail', 'Unable to initiate Khalti payment. Please try again.');
+
+            return redirect()->route('products.index')
+                ->with('error', 'Khalti payment initiation failed: ' . $detail);
+        } catch (Throwable $e) {
+            Log::error('Khalti initiation HTTP error', [
+                'message' => $e->getMessage(),
+                'product_id' => $product->id,
+                'user_id' => auth()->id(),
+            ]);
+            try {
+                $order->markAsFailed();
+            } catch (Throwable $_) {
+                // ignore
+            }
+            return redirect()->route('products.index')
+                ->with('error', 'Payment service is currently unavailable. Try again later.');
         }
-
-        $order->markAsFailed();
-        $detail = data_get($responseBody, 'detail', 'Unable to initiate Khalti payment. Please try again.');
-
-        return redirect()->route('products.index')
-            ->with('error', 'Khalti payment initiation failed: ' . $detail);
     }
 
     /**
@@ -387,6 +445,15 @@ class PaymentController extends Controller
             if (!$order) {
                 return redirect()->route('products.index')
                     ->with('error', 'Order not found for this transaction.');
+            }
+
+            // Idempotency: if already completed, show success
+            if ($order->status === 'completed') {
+                Log::info('Khalti callback for already completed order', ['order_id' => $order->id]);
+                return view('payment.success', [
+                    'order' => $order->load('product'),
+                    'transactionCode' => $order->transaction_id ?? $order->transaction_uuid ?? $pidx,
+                ]);
             }
 
             // Verify status is Completed or Complete
