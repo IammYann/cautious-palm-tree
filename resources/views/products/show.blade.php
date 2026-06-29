@@ -28,8 +28,8 @@
     {{-- eSewa Purchase Section --}}
     <div style="background: linear-gradient(135deg, #f0faf0, #e8f5e9); border: 2px solid #60bb46; border-radius: 12px; padding: 2rem; margin-bottom: 1rem;">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-            <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #60bb46, #4a9e35); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-weight: bold; font-size: 1rem;">e</span>
+            <div >
+                <img src="{{ asset('esewa-seeklogo.svg') }}" alt="eSewa logo" style="height: 32px;">
             </div>
             <h3 style="color: #2c3e50; margin: 0;">Pay with eSewa</h3>
         </div>
@@ -43,7 +43,8 @@
                 <form action="{{ route('payment.esewa.initiate', $product->id) }}" method="POST" style="background: none; box-shadow: none; padding: 0; margin: 0;">
                     @csrf
                     <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                        <button type="submit" id="esewa-buy-btn" style="
+                        <button 
+                        {{-- type="submit" id="esewa-buy-btn" style="
                             background: linear-gradient(135deg, #60bb46, #4a9e35);
                             color: white;
                             border: none;
@@ -57,9 +58,12 @@
                             display: flex;
                             align-items: center;
                             gap: 0.5rem;
-                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(96, 187, 70, 0.4)'"
-                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(96, 187, 70, 0.3)'">
-                            🛒 Buy with eSewa — Rs. {{ number_format($product->price, 2) }}
+                        " 
+                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(96, 187, 70, 0.4)'"
+                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(96, 187, 70, 0.3)'"
+                            --}}
+                           >
+                        Buy with eSewa — Rs. {{ number_format($product->price, 2) }}
                         </button>
                     </div>
                 </form>
@@ -80,8 +84,8 @@
     {{-- Khalti Purchase Section --}}
     <div style="background: linear-gradient(135deg, #f3e5f5, #e1bee7); border: 2px solid #5c2d91; border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-            <div style="width: 36px; height: 36px; background: #5c2d91; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-weight: bold; font-size: 1rem;">K</span>
+            <div >
+                <img src="{{ asset('khalti-seeklogo.svg') }}" alt="Khalti logo" style="height: 32px;">
             </div>
             <h3 style="color: #2c3e50; margin: 0;">Pay with Khalti</h3>
         </div>
@@ -95,7 +99,8 @@
                 <form action="{{ route('payment.khalti.initiate', $product->id) }}" method="POST" style="background: none; box-shadow: none; padding: 0; margin: 0;">
                     @csrf
                     <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                        <button type="submit" id="khalti-buy-btn" style="
+                        <button 
+                        {{-- type="submit" id="khalti-buy-btn" style="
                             background: #5c2d91;
                             color: white;
                             border: none;
@@ -110,8 +115,9 @@
                             align-items: center;
                             gap: 0.5rem;
                         " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(92, 45, 145, 0.4)'; this.style.background='#4e247d';"
-                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(92, 45, 145, 0.3)'; this.style.background='#5c2d91';">
-                            🛒 Buy with Khalti — Rs. {{ number_format($product->price, 2) }}
+                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(92, 45, 145, 0.3)'; this.style.background='#5c2d91';" --}}
+                           >
+                            Buy with Khalti — Rs. {{ number_format($product->price, 2) }}
                         </button>
                     </div>
                 </form>
