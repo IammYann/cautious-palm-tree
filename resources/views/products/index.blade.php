@@ -3,7 +3,7 @@
 @section('title', 'Products')
 
 @section('content')
-<h1>🛍️ Available Products</h1>
+<h1>Available Products</h1>
 
 @if ($products->count() > 0)
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem;">
@@ -12,7 +12,7 @@
                 <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">{{ $product->name }}</h3>
                 
                 <p style="color: #7f8c8d; margin-bottom: 1rem;">
-                    {{ Str::limit($product->description, 100) }}
+                    {{ Str::limit($product->description, 100) }}{{ Str::length($product->description) > 100 ? '...' : '' }}
                 </p>
 
                 <p style="font-size: 1.5rem; color: #27ae60; font-weight: bold; margin-bottom: 0.5rem;">

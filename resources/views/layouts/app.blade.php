@@ -141,15 +141,15 @@
 <body>
     <nav>
         <div>
-            <a href="{{ route('products.index') }}">🛍️ Products</a>
+            <a href="{{ route('products.index') }}">Products</a>
         </div>
         <div class="nav-right">
             @auth
-                <span>👤 {{ auth()->user()->name }}</span>
+                <span>{{ auth()->user()->name }}</span>
                 
                 @if(auth()->user()->role === 'admin')
-                    <a href="{{ route('admin.products.index') }}">📦 Manage Products</a>
-                    <a href="{{ route('admin.users.index') }}">👥 Manage Users</a>
+                    <a href="{{ route('admin.products.index') }}">Manage Products</a>
+                    <a href="{{ route('admin.users.index') }}">Manage Users</a>
                 @endif
                 
                 <form action="{{ route('logout') }}" method="POST">
