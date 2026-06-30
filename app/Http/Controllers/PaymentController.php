@@ -218,15 +218,6 @@ class PaymentController extends Controller
                 ->with('error', 'Order not found for this transaction.');
         }
 
-        // Idempotency: if order already completed, show success and skip re-processing
-        if ($order->status === 'completed') {
-            \Illuminate\Support\Facades\Log::info('eSewa callback for already completed order', ['order_id' => $order->id]);
-            return view('payment.success', [
-                'order' => $order->load('product'),
-                'transactionCode' => $transactionCode ?? $order->transaction_id ?? $order->transaction_uuid,
-            ]);
-        }
-
         // Verify the amount matches
         // Strip commas from eSewa amount (e.g. "1,299.21" -> "1299.21")
         $cleanedTotalAmount = str_replace(',', '', $totalAmount);
@@ -240,27 +231,62 @@ class PaymentController extends Controller
                 ->with('error', 'Payment amount mismatch. Potential fraud detected.');
         }
 
-        // Mark order as completed
-        if ($status === 'COMPLETE') {
-            if ($order->status !== 'pending') {
-                \Illuminate\Support\Facades\Log::info('eSewa callback received for non-pending order', ['order_id' => $order->id, 'status' => $order->status]);
-                return view('payment.success', [
-                    'order' => $order->load('product'),
-                    'transactionCode' => $transactionCode ?? $order->transaction_id ?? $order->transaction_uuid,
-                ]);
-            }
+        // Check if payment was actually COMPLETE
+        if ($status !== 'COMPLETE') {
+            \Illuminate\Support\Facades\Log::warning('eSewa payment status not COMPLETE', ['status' => $status]);
+            return redirect()->route('products.index')
+                ->with('error', 'Payment was not completed.');
+        }
 
-            $order->markAsCompleted($transactionCode);
+        $purchaseSuccessful = false;
+        $requiresRefund = false;
 
-            // Mark the product as unavailable (sold)
-            $order->product->update(['is_available' => false]);
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($order, $transactionCode, &$purchaseSuccessful, &$requiresRefund) {
+                // 1. Lock the Order to prevent duplicate webhook processing
+                $lockedOrder = \App\Models\Order::where('id', $order->id)->lockForUpdate()->first();
+                
+                // Idempotency: If already completed, just return success
+                if ($lockedOrder->status === 'completed' || $lockedOrder->status !== 'pending') {
+                    $purchaseSuccessful = true;
+                    return; 
+                }
 
-            // Clear cache
+                // 2. Lock the Product to serialize access across all concurrent buyers
+                $product = \App\Models\Product::where('id', $lockedOrder->product_id)->lockForUpdate()->first();
+
+                // 3. Race Condition Check: Is the product still available?
+                if (!$product->is_available) {
+                    $requiresRefund = true;
+                    $lockedOrder->update(['status' => 'refund_required']);
+                    return;
+                }
+
+                // 4. Finalize the Purchase
+                $lockedOrder->markAsCompleted($transactionCode);
+                $product->update(['is_available' => false]);
+                
+                $purchaseSuccessful = true;
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Transaction failed during checkout', ['error' => $e->getMessage()]);
+            return redirect()->route('products.index')->with('error', 'An error occurred during checkout processing.');
+        }
+
+        if ($requiresRefund) {
+            \Illuminate\Support\Facades\Log::warning('Race condition prevented: Item sold concurrently. Refund required.', [
+                'order_id' => $order->id,
+                'transaction_code' => $transactionCode
+            ]);
+            return redirect()->route('products.index')
+                ->with('error', 'Sorry, another user bought this item moments before your payment completed. Your payment will be refunded.');
+        }
+
+        if ($purchaseSuccessful) {
             \Illuminate\Support\Facades\Cache::forget('all_products');
             \Illuminate\Support\Facades\Cache::forget('admin_products');
             \Illuminate\Support\Facades\Cache::forget('product_' . $order->product_id);
 
-            // Dispatch event to send emails to buyer and seller
             \App\Events\productpurchase::dispatch($order);
 
             \Illuminate\Support\Facades\Log::info('eSewa payment completed successfully', [
@@ -270,7 +296,7 @@ class PaymentController extends Controller
 
             return view('payment.success', [
                 'order' => $order->load('product'),
-                'transactionCode' => $transactionCode,
+                'transactionCode' => $transactionCode ?? $order->transaction_id ?? $order->transaction_uuid,
             ]);
         }
 
@@ -490,38 +516,69 @@ class PaymentController extends Controller
                     ->with('error', 'Order not found for this transaction.');
             }
 
-            // Idempotency: if already completed, show success
-            if ($order->status === 'completed') {
-                Log::info('Khalti callback for already completed order', ['order_id' => $order->id]);
-                return view('payment.success', [
-                    'order' => $order->load('product'),
-                    'transactionCode' => $order->transaction_id ?? $order->transaction_uuid ?? $pidx,
-                ]);
+            // Verify status is Completed or Complete before doing anything else
+            if (!isset($data['status']) || (strtolower($data['status']) !== 'completed' && strtolower($data['status']) !== 'complete')) {
+                return redirect()->route('products.index')
+                    ->with('error', 'Payment was not completed in Khalti.');
             }
 
-            // Verify status is Completed or Complete
-            if (isset($data['status']) && (strtolower($data['status']) === 'completed' || strtolower($data['status']) === 'complete')) {
-                // Verify amount matches (convert paisa to rupees)
-                $khaltiAmount = $data['total_amount'] / 100;
-                if ((float)$khaltiAmount != (float)$order->amount) {
-                    $order->markAsFailed();
-                    return redirect()->route('products.index')
-                        ->with('error', 'Payment amount mismatch. Potential fraud detected.');
-                }
+            // Verify amount matches (convert paisa to rupees)
+            $khaltiAmount = $data['total_amount'] / 100;
+            if ((float)$khaltiAmount != (float)$order->amount) {
+                $order->markAsFailed();
+                return redirect()->route('products.index')
+                    ->with('error', 'Payment amount mismatch. Potential fraud detected.');
+            }
 
-                // Mark order as completed
-                $actualTxnId = $data['transaction_id'] ?? $transactionId ?? $pidx;
-                $order->markAsCompleted($actualTxnId);
+            $purchaseSuccessful = false;
+            $requiresRefund = false;
+            $actualTxnId = $data['transaction_id'] ?? $transactionId ?? $pidx;
 
-                // Mark product as unavailable
-                $order->product->update(['is_available' => false]);
+            try {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($order, $actualTxnId, $pidx, &$purchaseSuccessful, &$requiresRefund) {
+                    // 1. Lock the Order
+                    $lockedOrder = \App\Models\Order::where('id', $order->id)->lockForUpdate()->first();
+                    
+                    if ($lockedOrder->status === 'completed' || $lockedOrder->status !== 'pending') {
+                        $purchaseSuccessful = true;
+                        return;
+                    }
 
-                // Clear cache
-                Cache::forget('all_products');
-                Cache::forget('admin_products');
-                Cache::forget('product_' . $order->product_id);
+                    // 2. Lock the Product
+                    $product = \App\Models\Product::where('id', $lockedOrder->product_id)->lockForUpdate()->first();
 
-                // Dispatch event
+                    // 3. Race condition check
+                    if (!$product->is_available) {
+                        $requiresRefund = true;
+                        $lockedOrder->update(['status' => 'refund_required']);
+                        return;
+                    }
+
+                    // 4. Finalize
+                    $lockedOrder->markAsCompleted($actualTxnId);
+                    $product->update(['is_available' => false]);
+                    
+                    $purchaseSuccessful = true;
+                });
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Khalti transaction failed', ['error' => $e->getMessage()]);
+                return redirect()->route('products.index')->with('error', 'An error occurred during checkout processing.');
+            }
+
+            if ($requiresRefund) {
+                \Illuminate\Support\Facades\Log::warning('Khalti race condition prevented. Refund required.', [
+                    'order_id' => $order->id,
+                    'transaction_code' => $actualTxnId
+                ]);
+                return redirect()->route('products.index')
+                    ->with('error', 'Sorry, another user bought this item moments before your payment completed. Your payment will be refunded.');
+            }
+
+            if ($purchaseSuccessful) {
+                \Illuminate\Support\Facades\Cache::forget('all_products');
+                \Illuminate\Support\Facades\Cache::forget('admin_products');
+                \Illuminate\Support\Facades\Cache::forget('product_' . $order->product_id);
+
                 \App\Events\productpurchase::dispatch($order);
 
                 return view('payment.success', [
