@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Throwable;
 
 class ProductController extends Controller
 {
@@ -39,18 +43,32 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
         ]);
 
-        Product::create([
-            'name' => $validated['name'],
-            'description' => $validated['description'],
-            'price' => $validated['price'],
-            'user_id' => auth()->id(),
-        ]);
+        try {
+            DB::beginTransaction();
 
-        // Invalidate related caches
-        Cache::forget('all_products');
-        Cache::forget('admin_products');
+            Product::create([
+                'name' => $validated['name'],
+                'description' => $validated['description'],
+                'price' => $validated['price'],
+                'user_id' => auth()->id(),
+            ]);
 
-        return redirect()->route('admin.products.index')->with('success', 'Product created successfully!');
+            // Invalidate related caches
+            Cache::forget('all_products');
+            Cache::forget('admin_products');
+
+            DB::commit();
+
+            return redirect()->route('admin.products.index')->with('success', 'Product created successfully!');
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Product creation failed', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id(),
+            ]);
+            return redirect()->back()->withInput()
+                ->with('error', 'Failed to create product. Please try again.');
+        }
     }
 
     /**
@@ -85,14 +103,29 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
         ]);
 
-        $product->update($validated);
+        try {
+            DB::beginTransaction();
 
-        // Invalidate related caches
-        Cache::forget('all_products');
-        Cache::forget('admin_products');
-        Cache::forget('product_' . $product->id);
+            $product->update($validated);
 
-        return redirect()->route('admin.products.index')->with('success', 'Product updated successfully!');
+            // Invalidate related caches
+            Cache::forget('all_products');
+            Cache::forget('admin_products');
+            Cache::forget('product_' . $product->id);
+
+            DB::commit();
+
+            return redirect()->route('admin.products.index')->with('success', 'Product updated successfully!');
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Product update failed', [
+                'error' => $e->getMessage(),
+                'product_id' => $product->id,
+                'user_id' => auth()->id(),
+            ]);
+            return redirect()->back()->withInput()
+                ->with('error', 'Failed to update product. Please try again.');
+        }
     }
 
     /**
@@ -100,12 +133,36 @@ class ProductController extends Controller
      */
     public function destroy(Product $product)
     {
-        $product->delete();
-        Cache::forget('all_products');
-        Cache::forget('admin_products');
-        Cache::forget('product_' . $product->id);
+        try {
+            // Check if product has active orders
+            if ($product->orders()->where('status', '!=', 'completed')->exists()) {
+                return redirect()->back()
+                    ->with('error', 'Cannot delete product with pending or active orders. Please complete or cancel all orders first.');
+            }
 
-        return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully!');
+            DB::beginTransaction();
+
+            $productId = $product->id;
+            $product->delete();
+
+            // Invalidate related caches
+            Cache::forget('all_products');
+            Cache::forget('admin_products');
+            Cache::forget('product_' . $productId);
+
+            DB::commit();
+
+            return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully!');
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Product deletion failed', [
+                'error' => $e->getMessage(),
+                'product_id' => $product->id,
+                'user_id' => auth()->id(),
+            ]);
+            return redirect()->back()
+                ->with('error', 'Failed to delete product. Please try again.');
+        }
     }
     /**
      * Display admin product listing

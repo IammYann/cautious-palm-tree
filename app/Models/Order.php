@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class Order extends Model
 {
@@ -53,11 +55,21 @@ class Order extends Model
      */
     public function markAsCompleted($transactionId)
     {
-        $this->update([
-            'transaction_id' => $transactionId,
-            'status' => 'completed',
-            'payment_date' => now(),
-        ]);
+        try {
+            $this->update([
+                'transaction_id' => $transactionId,
+                'status' => 'completed',
+                'payment_date' => now(),
+            ]);
+            Log::info('Order marked as completed', ['order_id' => $this->id, 'transaction_id' => $transactionId]);
+        } catch (Throwable $e) {
+            Log::error('Failed to mark order as completed', [
+                'order_id' => $this->id,
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -65,6 +77,16 @@ class Order extends Model
      */
     public function markAsFailed()
     {
-        $this->update(['status' => 'failed']);
+        try {
+            $this->update(['status' => 'failed']);
+            Log::info('Order marked as failed', ['order_id' => $this->id]);
+        } catch (Throwable $e) {
+            Log::error('Failed to mark order as failed', [
+                'order_id' => $this->id,
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+            throw $e;
+        }
     }
 }

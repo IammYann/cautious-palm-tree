@@ -35,13 +35,32 @@ class SendRegistrationEmail implements ShouldQueue
      */
     public function handle(UserRegistered $event): void
     {
-        // Add a 2-second sleep to prevent Mailtrap "Too many emails per second" error
-        // when queue worker processes multiple welcome emails in a row.
-        sleep(2);
+        try {
+            // Validate user has email
+            if (!$event->user || !$event->user->email) {
+                throw new \Exception('User email missing for registration');
+            }
 
-        Mail::send('emails.welcome', ['user' => $event->user], function (Message $message) use ($event) {
-            $message->to($event->user->email)
-                    ->subject('Welcome to Our Shop!');
-        });
+            // Add a 2-second sleep to prevent Mailtrap "Too many emails per second" error
+            // when queue worker processes multiple welcome emails in a row.
+            sleep(2);
+
+            Mail::send('emails.welcome', ['user' => $event->user], function (Message $message) use ($event) {
+                $message->to($event->user->email)
+                        ->subject('Welcome to Our Shop!');
+            });
+
+            \Illuminate\Support\Facades\Log::info('Registration email sent successfully', [
+                'user_id' => $event->user->id,
+                'email' => $event->user->email,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send registration email', [
+                'user_id' => $event->user?->id,
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+            // Don't rethrow — registration should complete even if welcome email fails
+        }
     }
 }

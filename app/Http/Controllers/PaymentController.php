@@ -5,13 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
-use Exception;
 
 class PaymentController extends Controller
 {
@@ -140,8 +138,25 @@ class PaymentController extends Controller
                 ->with('error', 'Invalid payment response.');
         }
 
-        // Decode the Base64 response
-        $decodedData = json_decode(base64_decode($encodedData), true);
+        try {
+            // Safely decode the Base64 response
+            $decoded = @base64_decode($encodedData, true);
+            if ($decoded === false) {
+                throw new \Exception('Invalid base64 encoding');
+            }
+
+            $decodedData = json_decode($decoded, true);
+            if (!is_array($decodedData)) {
+                throw new \Exception('Invalid JSON in callback data');
+            }
+        } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('eSewa callback decode failed', [
+                'error' => $e->getMessage(),
+                'raw_data' => substr($encodedData, 0, 100),
+            ]);
+            return redirect()->route('products.index')
+                ->with('error', 'Could not decode payment response.');
+        }
 
         \Illuminate\Support\Facades\Log::info('eSewa decoded response', [
             'decoded' => $decodedData,
@@ -419,17 +434,45 @@ class PaymentController extends Controller
         $baseUrl = config('khalti.base_url');
         $secretKey = config('khalti.secret_key');
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Key ' . $secretKey,
-            'Content-Type' => 'application/json',
-        ])->post($baseUrl . '/epayment/lookup/', [
-            'pidx' => $pidx,
-        ]);
+        try {
+            $response = Http::timeout(20)
+                ->withHeaders([
+                    'Authorization' => 'Key ' . $secretKey,
+                    'Content-Type' => 'application/json',
+                ])
+                ->post($baseUrl . '/epayment/lookup/', [
+                    'pidx' => $pidx,
+                ]);
 
-        Log::info('Khalti lookup verification response', [
-            'status' => $response->status(),
-            'body' => $response->json(),
-        ]);
+            Log::info('Khalti lookup verification response', [
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('Khalti lookup API returned status ' . $response->status());
+            }
+        } catch (Throwable $e) {
+            Log::error('Khalti lookup API error', [
+                'error' => $e->getMessage(),
+                'pidx' => $pidx,
+                'transaction_uuid' => $transactionUuid,
+            ]);
+
+            if (isset($transactionUuid)) {
+                $order = Order::where('transaction_uuid', $transactionUuid)->first();
+                if ($order && $order->status === 'pending') {
+                    try {
+                        $order->markAsFailed();
+                    } catch (Throwable $_) {
+                        // ignore
+                    }
+                }
+            }
+
+            return redirect()->route('products.index')
+                ->with('error', 'Payment verification service unavailable. Please contact support.');
+        }
 
         if ($response->successful()) {
             $data = $response->json();
