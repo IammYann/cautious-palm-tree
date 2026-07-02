@@ -39,6 +39,9 @@ Route::get('/payment/esewa/failure', [PaymentController::class, 'failure'])->nam
 // Khalti Payment Callbacks (no auth middleware — Khalti redirects the browser back)
 Route::get('/payment/khalti/callback', [PaymentController::class, 'khaltiCallback'])->name('payment.khalti.callback');
 
+// FonePay Payment Callbacks (no auth middleware — FonePay redirects the browser back)
+Route::get('/payment/fonepay/callback', [PaymentController::class, 'fonepayCallback'])->name('payment.fonepay.callback');
+
 // Authenticated Routes
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
@@ -52,6 +55,9 @@ Route::middleware('auth')->group(function () {
 
     // Khalti Payment Initiation (must be logged in to buy)
     Route::post('/payment/khalti/{product}', [PaymentController::class, 'khaltiInitiate'])->name('payment.khalti.initiate');
+
+    // FonePay Payment Initiation (must be logged in to buy)
+    Route::post('/payment/fonepay/{product}', [PaymentController::class, 'fonepayInitiate'])->name('payment.fonepay.initiate');
 });
 
 // Admin Routes (only for admins)

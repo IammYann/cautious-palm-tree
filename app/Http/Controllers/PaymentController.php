@@ -599,4 +599,272 @@ class PaymentController extends Controller
         return redirect()->route('products.index')
             ->with('error', 'Khalti payment verification failed or cancelled.');
     }
+
+    /**
+     * Generate HMAC-SHA512 signature for FonePay
+     */
+    private function generateFonepaySignature(string $message): string
+    {
+        $secret = config('fonepay.secret_key');
+        return hash_hmac('sha512', $message, $secret);
+    }
+
+    /**
+     * Initiate FonePay payment for a product
+     */
+    public function fonepayInitiate(Request $request, Product $product)
+    {
+        // Check if the product is available
+        if (!$product->is_available) {
+            return redirect()->route('products.index')
+                ->with('error', 'This product is no longer available for purchase.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $quantity = 1;
+            $amount = $product->price * $quantity;
+            $totalAmount = $amount;
+
+            // Create a pending order
+            $order = Order::create([
+                'user_id' => auth()->id(),
+                'product_id' => $product->id,
+                'amount' => $totalAmount,
+                'quantity' => $quantity,
+                'status' => 'pending',
+            ]);
+
+            // Generate unique transaction UUID (used as PRN — Product Reference Number)
+            $transactionUuid = $order->id . '-' . now()->format('ymdHis');
+            $order->update(['transaction_uuid' => $transactionUuid]);
+
+            $merchantCode = config('fonepay.merchant_code');
+            $secretKey = config('fonepay.secret_key');
+
+            if (!$secretKey || $secretKey === 'your_secret_key' || !$merchantCode || $merchantCode === 'your_merchant_code') {
+                Log::error('FonePay payment initiation aborted: credentials are missing or still placeholders.', [
+                    'merchant_code' => $merchantCode,
+                ]);
+
+                $order->markAsFailed();
+                return redirect()->route('products.index')
+                    ->with('error', 'FonePay is not configured correctly. Please set real FONEPAY_MERCHANT_CODE and FONEPAY_SECRET_KEY in your .env file.');
+            }
+
+            // FonePay required parameters
+            $formattedAmount = number_format($totalAmount, 2, '.', '');
+            $paymentMode = 'P'; // Payment mode
+            $currency = 'NPR';
+            $paymentDate = now()->format('m/d/Y'); // MM/dd/yyyy format
+            $remarks1 = substr($product->name, 0, 99); // Product name as description
+            $remarks2 = 'Order #' . $order->id;
+            $returnUrl = route('payment.fonepay.callback');
+
+            // Generate DV (Data Validation) — HMAC-SHA512 signature
+            // Concatenation order: PID,MD,PRN,AMT,CRN,DT,R1,R2,RU
+            $signatureMessage = "{$merchantCode},{$paymentMode},{$transactionUuid},{$formattedAmount},{$currency},{$paymentDate},{$remarks1},{$remarks2},{$returnUrl}";
+            $dv = $this->generateFonepaySignature($signatureMessage);
+
+            $paymentData = [
+                'PID' => $merchantCode,
+                'MD' => $paymentMode,
+                'PRN' => $transactionUuid,
+                'AMT' => $formattedAmount,
+                'CRN' => $currency,
+                'DT' => $paymentDate,
+                'R1' => $remarks1,
+                'R2' => $remarks2,
+                'RU' => $returnUrl,
+                'DV' => $dv,
+            ];
+
+            $paymentUrl = config('fonepay.payment_url');
+
+            Log::info('FonePay payment initiated', [
+                'order_id' => $order->id,
+                'prn' => $transactionUuid,
+                'amount' => $formattedAmount,
+                'return_url' => $returnUrl,
+                'payment_url' => $paymentUrl,
+            ]);
+
+            DB::commit();
+
+            return view('payment.fonepay-form', compact('paymentData', 'paymentUrl', 'product'));
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('FonePay payment initiation failed', [
+                'message' => $e->getMessage(),
+                'product_id' => $product->id,
+                'user_id' => auth()->id(),
+                'exception' => $e,
+            ]);
+            if (isset($order) && $order->exists) {
+                try {
+                    $order->markAsFailed();
+                } catch (Throwable $_) {
+                    // ignore
+                }
+            }
+
+            return redirect()->route('products.index')
+                ->with('error', 'Unable to start FonePay payment. Please try again later.');
+        }
+    }
+
+    /**
+     * Handle payment callback from FonePay
+     */
+    public function fonepayCallback(Request $request)
+    {
+        // Extract all callback parameters
+        $prn = $request->query('PRN');
+        $pid = $request->query('PID');
+        $ps = $request->query('PS');   // Payment Status (true/false)
+        $rc = $request->query('RC');   // Response Code
+        $uid = $request->query('UID'); // Unique ID from FonePay
+        $bc = $request->query('BC');   // Bank Code
+        $ini = $request->query('INI'); // Initiator
+        $pAmt = $request->query('P_AMT'); // Paid Amount
+        $rAmt = $request->query('R_AMT'); // Refund Amount
+        $dv = $request->query('DV');   // Data Validation (signature)
+
+        Log::info('FonePay callback received', [
+            'PRN' => $prn,
+            'PID' => $pid,
+            'PS' => $ps,
+            'RC' => $rc,
+            'UID' => $uid,
+            'BC' => $bc,
+            'INI' => $ini,
+            'P_AMT' => $pAmt,
+            'R_AMT' => $rAmt,
+            'DV' => $dv,
+            'all_query' => $request->query(),
+        ]);
+
+        if (!$prn || !$dv) {
+            return redirect()->route('products.index')
+                ->with('error', 'Invalid payment response from FonePay.');
+        }
+
+        // Verify the response signature (DV)
+        // Concatenation order for verification: PRN,PID,PS,RC,UID,BC,INI,P_AMT,R_AMT
+        $verificationMessage = "{$prn},{$pid},{$ps},{$rc},{$uid},{$bc},{$ini},{$pAmt},{$rAmt}";
+        $expectedDv = $this->generateFonepaySignature($verificationMessage);
+
+        Log::info('FonePay signature verification', [
+            'message' => $verificationMessage,
+            'expected_dv' => $expectedDv,
+            'received_dv' => $dv,
+            'match' => strtolower($expectedDv) === strtolower($dv),
+        ]);
+
+        if (strtolower($expectedDv) !== strtolower($dv)) {
+            Log::error('FonePay signature MISMATCH - payment rejected');
+            return redirect()->route('products.index')
+                ->with('error', 'Payment verification failed. Signature mismatch.');
+        }
+
+        // Find the order by PRN (which is our transaction_uuid)
+        $order = Order::where('transaction_uuid', $prn)->first();
+
+        if (!$order) {
+            Log::error('FonePay order not found', ['PRN' => $prn]);
+            return redirect()->route('products.index')
+                ->with('error', 'Order not found for this transaction.');
+        }
+
+        // Check if payment was successful
+        if (strtolower($ps) !== 'true') {
+            Log::warning('FonePay payment not successful', ['PS' => $ps, 'RC' => $rc]);
+            if ($order->status === 'pending') {
+                $order->markAsFailed();
+            }
+            return redirect()->route('products.index')
+                ->with('error', 'FonePay payment was not successful.');
+        }
+
+        // Verify the amount matches
+        $cleanedPaidAmount = str_replace(',', '', $pAmt);
+        if ((float) $cleanedPaidAmount != (float) $order->amount) {
+            Log::error('FonePay amount MISMATCH', [
+                'fonepay_amount' => $cleanedPaidAmount,
+                'order_amount' => $order->amount,
+            ]);
+            $order->markAsFailed();
+            return redirect()->route('products.index')
+                ->with('error', 'Payment amount mismatch. Potential fraud detected.');
+        }
+
+        // Pessimistic locking to prevent race conditions
+        $purchaseSuccessful = false;
+        $requiresRefund = false;
+        $transactionCode = $uid; // FonePay's unique transaction ID
+
+        try {
+            DB::transaction(function () use ($order, $transactionCode, &$purchaseSuccessful, &$requiresRefund) {
+                // 1. Lock the Order to prevent duplicate callback processing
+                $lockedOrder = Order::where('id', $order->id)->lockForUpdate()->first();
+
+                if ($lockedOrder->status === 'completed' || $lockedOrder->status !== 'pending') {
+                    $purchaseSuccessful = true;
+                    return;
+                }
+
+                // 2. Lock the Product to serialize access across concurrent buyers
+                $product = Product::where('id', $lockedOrder->product_id)->lockForUpdate()->first();
+
+                // 3. Race condition check
+                if (!$product->is_available) {
+                    $requiresRefund = true;
+                    $lockedOrder->update(['status' => 'refund_required']);
+                    return;
+                }
+
+                // 4. Finalize the purchase
+                $lockedOrder->markAsCompleted($transactionCode);
+                $product->update(['is_available' => false]);
+
+                $purchaseSuccessful = true;
+            });
+        } catch (Throwable $e) {
+            Log::error('FonePay transaction failed during checkout', ['error' => $e->getMessage()]);
+            return redirect()->route('products.index')
+                ->with('error', 'An error occurred during checkout processing.');
+        }
+
+        if ($requiresRefund) {
+            Log::warning('FonePay race condition prevented. Refund required.', [
+                'order_id' => $order->id,
+                'transaction_code' => $transactionCode,
+            ]);
+            return redirect()->route('products.index')
+                ->with('error', 'Sorry, another user bought this item moments before your payment completed. Your payment will be refunded.');
+        }
+
+        if ($purchaseSuccessful) {
+            Cache::forget('all_products');
+            Cache::forget('admin_products');
+            Cache::forget('product_' . $order->product_id);
+
+            \App\Events\productpurchase::dispatch($order);
+
+            Log::info('FonePay payment completed successfully', [
+                'order_id' => $order->id,
+                'transaction_code' => $transactionCode,
+            ]);
+
+            return view('payment.success', [
+                'order' => $order->load('product'),
+                'transactionCode' => $transactionCode ?? $order->transaction_id ?? $order->transaction_uuid,
+            ]);
+        }
+
+        // Fallback failure
+        $order->markAsFailed();
+        return redirect()->route('products.index')
+            ->with('error', 'FonePay payment processing failed.');
+    }
 }
