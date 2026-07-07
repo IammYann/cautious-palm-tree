@@ -2,7 +2,7 @@
 
 Welcome to SHOP, a sleek and modern Laravel-based shopping platform built for smooth browsing, secure authentication, and seamless digital payments. Whether you are a shopper discovering products or an admin managing inventory, this project is designed to feel polished, practical, and ready for the next step.
 
-## ✨ What This Project Offers
+## What This Project Offers
 
 - Beautiful Laravel storefront with a clean, modern experience
 - User registration and login flows
@@ -15,7 +15,7 @@ Welcome to SHOP, a sleek and modern Laravel-based shopping platform built for sm
 - SQLite-backed local development setup
 - A reliable Laravel 12 foundation with PHP 8.5 support
 
-## 🚀 Features at a Glance
+## Features at a Glance
 
 - Public product catalog for visitors
 - Authenticated shopping experience for customers
@@ -23,7 +23,7 @@ Welcome to SHOP, a sleek and modern Laravel-based shopping platform built for sm
 - Payment callback handling for real-world gateway flows
 - Structured Laravel architecture with models, controllers, events, listeners, and mail support
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - Laravel 12
 - PHP 8.5
@@ -33,7 +33,7 @@ Welcome to SHOP, a sleek and modern Laravel-based shopping platform built for sm
 - Composer
 - Node.js / npm
 
-## 📦 Installation
+## Installation
 
 1. Clone the repository
    ```bash
@@ -76,7 +76,7 @@ Welcome to SHOP, a sleek and modern Laravel-based shopping platform built for sm
    npm run dev
    ```
 
-## 🧪 Verified Environment Notes
+## Verified Environment Notes
 
 If you hit a PDO-related issue during local development, ensure PHP has the required PDO extension enabled. The project was verified to work with:
 
@@ -84,7 +84,7 @@ If you hit a PDO-related issue during local development, ensure PHP has the requ
 - PDO enabled
 - SQLite driver available
 
-## 🧭 Project Structure
+## Project Structure
 
 - app/ — Core application logic, controllers, models, and services
 - config/ — Laravel configuration files
@@ -93,12 +93,12 @@ If you hit a PDO-related issue during local development, ensure PHP has the requ
 - routes/ — Web routes for storefront, auth, payments, and admin pages
 - tests/ — Automated tests
 
-## 👤 Default Roles
+## Default Roles
 
 - Admin — can manage products and users
 - User — can browse products and complete purchases
 
-## 📌 Notes
+## Notes
 
 This project is a great foundation for a modern online shop experience and can be extended with features like:
 
@@ -108,6 +108,52 @@ This project is a great foundation for a modern online shop experience and can b
 - reviews and ratings
 - shipping integrations
 
-## ❤️ Contributing
+## Contributing
 
 Contributions are welcome. If you have ideas, fixes, or new features, feel free to open a pull request or share your improvements.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. Payment idempotency guard (highest value) Your PurchaseController::success() can be called twice by eSewa. Add an atomic Redis check so a transaction_uuid is processed only once:
+
+if (!Redis::set("esewa:{$transactionUuid}", 'processing', 'NX', 'EX', 3600)) {
+    return redirect(...)->with('error', 'Already processed');
+}
+See PurchaseController.php:97.
+
+2. Atomic stock / inventory counter (prevent overselling) Move quantity/stock to a Redis counter with INCRBY/DECRBY instead of risking race conditions on the DB during concurrent purchases.
+
+3. Rate limiting (app/Http/Kernel.php or middleware) Throttle purchase/login attempts per user/IP via Redis (throttle:60,1 already Redis-backed). Cheap abuse protection.
+
+4. Product view counts & "trending" (ProductController::show() app/Http/Controllers/ProductController.php:76) Use Redis::incr("views:product:{$id}") and a sorted set ZINCRBY trending 1 product:$id to show popular products.
+
+5. Real-time admin notifications (you already have the stub) productpurchase event (./app/Events/productpurchase.php) currently broadcasts to log. Switch BROADCAST_DRIVER=redis + Laravel Echo + Predis pub/sub to push "new order" alerts live to an admin dashboard.
+
+6. Cache tags for clean invalidation You manually Cache::forget(...) in 4 places (ProductController.php:56,111,148). Use Cache::tags(['products'])->remember(...) + Cache::tags('products')->flush() for one-line invalidation.
