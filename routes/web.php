@@ -25,7 +25,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store']);
     Route::get('/login', [LoginController::class, 'show'])->name('login');
-    Route::post('/login', [LoginController::class, 'store']);
+    Route::post('/login', [LoginController::class, 'store'])->middleware('redis.throttle:5,1');
 });
 
 // Public Product Viewing (anyone can view)
@@ -51,13 +51,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LogoutController::class, 'logout'])->name('logout');
 
     // eSewa Payment Initiation (must be logged in to buy)
-    Route::post('/payment/esewa/{product}', [PaymentController::class, 'initiate'])->name('payment.esewa.initiate');
+    Route::post('/payment/esewa/{product}', [PaymentController::class, 'initiate'])->name('payment.esewa.initiate')->middleware('redis.throttle:10,1');
 
     // Khalti Payment Initiation (must be logged in to buy)
-    Route::post('/payment/khalti/{product}', [PaymentController::class, 'khaltiInitiate'])->name('payment.khalti.initiate');
+    Route::post('/payment/khalti/{product}', [PaymentController::class, 'khaltiInitiate'])->name('payment.khalti.initiate')->middleware('redis.throttle:10,1');
 
     // FonePay Payment Initiation (must be logged in to buy)
-    Route::post('/payment/fonepay/{product}', [PaymentController::class, 'fonepayInitiate'])->name('payment.fonepay.initiate');
+    Route::post('/payment/fonepay/{product}', [PaymentController::class, 'fonepayInitiate'])->name('payment.fonepay.initiate')->middleware('redis.throttle:10,1');
 });
 
 // Admin Routes (only for admins)
