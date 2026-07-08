@@ -157,3 +157,5 @@ See PurchaseController.php:97.
 5. Real-time admin notifications (you already have the stub) productpurchase event (./app/Events/productpurchase.php) currently broadcasts to log. Switch BROADCAST_DRIVER=redis + Laravel Echo + Predis pub/sub to push "new order" alerts live to an admin dashboard.
 
 6. Cache tags for clean invalidation You manually Cache::forget(...) in 4 places (ProductController.php:56,111,148). Use Cache::tags(['products'])->remember(...) + Cache::tags('products')->flush() for one-line invalidation.
+
+7. Throttle Limitting Using redis
