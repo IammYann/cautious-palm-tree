@@ -22,7 +22,6 @@ class SendPurchaseNotificationEmail implements ShouldQueue
             $product = $order->product;
             $seller  = $product->user;
 
-            // Validate required email addresses
             if (!$buyer || !$buyer->email) {
                 throw new \Exception('Buyer email missing for order ' . $order->id);
             }
@@ -47,7 +46,6 @@ class SendPurchaseNotificationEmail implements ShouldQueue
                 'error' => $e->getMessage(),
                 'exception' => $e,
             ]);
-            // Don't rethrow — let the event complete even if emails fail
         }
     }
 }

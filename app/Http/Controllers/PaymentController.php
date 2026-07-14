@@ -34,7 +34,7 @@ class PaymentController extends Controller
                 ->with('error', 'This product is no longer available for purchase.');
         }
 
-        DB::beginTransaction();
+        DB::beginTransaction(); // 
         try {
             $quantity = 1;
             $amount = $product->price * $quantity;

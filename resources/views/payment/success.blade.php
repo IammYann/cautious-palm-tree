@@ -21,7 +21,7 @@
         {{-- Order Details --}}
         <div style="background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; text-align: left;">
             <h3 style="color: #2c3e50; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e0e0e0;">
-                📦 Order Details
+                Order Details
             </h3>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
@@ -51,7 +51,7 @@
                     <span style="color: #95a5a6; font-size: 0.85rem;">Status</span>
                     <p style="margin: 0.2rem 0 0;">
                         <span style="background: #d4edda; color: #155724; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
-                            ✅ Completed
+                            Completed
                         </span>
                     </p>
                 </div>
@@ -61,10 +61,10 @@
         {{-- Action Buttons --}}
         <div style="display: flex; gap: 1rem; justify-content: center;">
             <a href="{{ route('products.index') }}" class="btn" style="padding: 0.75rem 1.5rem;">
-                🛍️ Continue Shopping
+                Continue Shopping
             </a>
             <a href="{{ route('dashboard') }}" class="btn btn-success" style="padding: 0.75rem 1.5rem;">
-                📊 Dashboard
+                Dashboard
             </a>
         </div>
     </div>

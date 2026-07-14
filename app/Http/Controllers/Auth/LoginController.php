@@ -29,9 +29,9 @@ class LoginController extends Controller
         ]);
 
         // Attempt to authenticate
-        if (Auth::attempt($validated, $request->boolean('remember'))) {
-            $request->session()->regenerate();
-            return redirect()->intended(route('dashboard'))->with('success', 'Logged in successfully!');
+        if (Auth::attempt($validated, $request->boolean('remember'))) { // Auth::attempt() checks whether the email and password match a user in the database. The second argument, $request->boolean('remember'), is used to determine whether the user should be "remembered" after the session expires. If true, Laravel will store an encrypted cookie in the user's browser so that they remain logged in even after closing the browser. If false, the user will be logged out when the session expires.
+            $request->session()->regenerate(); // It protects against session fixation attacks, where someone might try to reuse an existing session ID to impersonate the user.
+            return redirect()->intended(route('dashboard'))->with('success', 'Logged in successfully!');// If the user was trying to access a protected page (for example, /profile) before being asked to log in, Laravel sends them back to that page after login. Otherwise, it redirects them to the dashboard route.
         }
 
         // Authentication failed

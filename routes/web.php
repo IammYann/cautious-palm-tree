@@ -12,17 +12,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Route::get('/payment-verify', [
-//     'uses' => 'PaymentController@verify',
-//     'as' => 'payment.verify',
-// ]);
 
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth'])->name('dashboard');
 
 Route::middleware('guest')->group(function () {
-    Route::get('/register', [RegisterController::class, 'show'])->name('register');
+    Route::get('/register', [RegisterController::class, 'show'])->name('register'); 
     Route::post('/register', [RegisterController::class, 'store']);
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('redis.throttle:5,1');

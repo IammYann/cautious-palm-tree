@@ -55,8 +55,7 @@ class PurchaseController extends Controller
             $secretKey
         );
 
-        // Prepare eSewa payment form data as per documentation
-        // NOTE: All string values per eSewa docs
+        // Prepare eSewa payment form data
         $esewaData = [
             'amount' => (string)$amount,
             'tax_amount' => (string)(int)$taxAmount,
