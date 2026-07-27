@@ -523,7 +523,7 @@ class PaymentController extends Controller
             }
 
             // Verify amount matches (convert paisa to rupees)
-            $khaltiAmount = $data['total_amount'] / 100;
+            $khaltiAmount = ($data['total_amount'] ?? 0) / 100;
             if ((float)$khaltiAmount != (float)$order->amount) {
                 $order->markAsFailed();
                 return redirect()->route('products.index')

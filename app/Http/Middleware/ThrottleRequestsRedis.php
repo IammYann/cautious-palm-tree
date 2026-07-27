@@ -14,18 +14,22 @@ class ThrottleRequestsRedis
      */
     public function handle(Request $request, Closure $next, int $maxAttempts = 5, int $decayMinutes = 1): Response
     {
-        $key = $this->resolveKey($request);
-        $attempts = (int) Redis::connection('default')->get($key);
+        try {
+            $key = $this->resolveKey($request);
+            $attempts = (int) Redis::connection('default')->get($key);
 
-        if ($attempts >= $maxAttempts) {
-            return response('Too many requests. Please try again later.', 429)
-                ->withHeaders([
-                    'Retry-After' => $decayMinutes * 60,
-                ]);
+            if ($attempts >= $maxAttempts) {
+                return response('Too many requests. Please try again later.', 429)
+                    ->withHeaders([
+                        'Retry-After' => $decayMinutes * 60,
+                    ]);
+            }
+
+            Redis::connection('default')->incr($key);
+            Redis::connection('default')->expire($key, $decayMinutes * 60);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Redis throttling failed', ['error' => $e->getMessage()]);
         }
-
-        Redis::connection('default')->incr($key);
-        Redis::connection('default')->expire($key, $decayMinutes * 60);
 
         return $next($request);
     }
