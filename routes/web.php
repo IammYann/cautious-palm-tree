@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\Admin\UserController;
 
 Route::get('/', function () {
@@ -42,6 +43,11 @@ Route::get('/payment/khalti/callback', [PaymentController::class, 'khaltiCallbac
 
 // FonePay Payment Callbacks (no auth middleware — FonePay redirects the browser back)
 Route::get('/payment/fonepay/callback', [PaymentController::class, 'fonepayCallback'])->name('payment.fonepay.callback');
+
+// Server-to-Server Webhook Endpoints (CSRF exempt — see bootstrap/app.php)
+Route::post('/payment/webhook/esewa', [PaymentWebhookController::class, 'esewaWebhook'])->name('payment.webhook.esewa');
+Route::post('/payment/webhook/khalti', [PaymentWebhookController::class, 'khaltiWebhook'])->name('payment.webhook.khalti');
+Route::post('/payment/webhook/fonepay', [PaymentWebhookController::class, 'fonepayWebhook'])->name('payment.webhook.fonepay');
 
 // Authenticated Routes
 Route::middleware('auth')->group(function () {

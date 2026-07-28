@@ -221,7 +221,9 @@ class PaymentController extends Controller
         // Verify the amount matches
         // Strip commas from eSewa amount (e.g. "1,299.21" -> "1299.21")
         $cleanedTotalAmount = str_replace(',', '', $totalAmount);
-        if ((float) $cleanedTotalAmount != (float) $order->amount) {
+        $orderPaisa = (int) round($order->amount * 100);
+        $receivedPaisa = (int) round($cleanedTotalAmount * 100);
+        if ($orderPaisa !== $receivedPaisa) {
             \Illuminate\Support\Facades\Log::error('eSewa amount MISMATCH', [
                 'esewa_amount' => $cleanedTotalAmount,
                 'order_amount' => $order->amount,
@@ -524,7 +526,9 @@ class PaymentController extends Controller
 
             // Verify amount matches (convert paisa to rupees)
             $khaltiAmount = ($data['total_amount'] ?? 0) / 100;
-            if ((float)$khaltiAmount != (float)$order->amount) {
+            $orderPaisa = (int) round($order->amount * 100);
+            $receivedPaisa = (int) round($khaltiAmount * 100);
+            if ($orderPaisa !== $receivedPaisa) {
                 $order->markAsFailed();
                 return redirect()->route('products.index')
                     ->with('error', 'Payment amount mismatch. Potential fraud detected.');
@@ -788,7 +792,9 @@ class PaymentController extends Controller
 
         // Verify the amount matches
         $cleanedPaidAmount = str_replace(',', '', $pAmt);
-        if ((float) $cleanedPaidAmount != (float) $order->amount) {
+        $orderPaisa = (int) round($order->amount * 100);
+        $receivedPaisa = (int) round($cleanedPaidAmount * 100);
+        if ($orderPaisa !== $receivedPaisa) {
             Log::error('FonePay amount MISMATCH', [
                 'fonepay_amount' => $cleanedPaidAmount,
                 'order_amount' => $order->amount,

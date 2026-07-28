@@ -27,6 +27,7 @@ class SecurityHeaders
             // Clear any accidental local HSTS cache in browser
             $response->headers->set('Strict-Transport-Security', 'max-age=0');
         }
+            // HSTS: Instruct browsers to only connect via HTTPS for 1 year
 
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
