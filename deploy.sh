@@ -3,19 +3,19 @@
 # Exit on error
 set -e
 
-echo "🚀 Starting Deployment Optimization Routine..."
+echo "starting Deployment Optimization Routine"
 
 # Optimize Laravel configurations and routes
-echo "📦 Caching configuration..."
+echo "Caching configuration"
 php artisan config:cache
 
-echo "🛣️ Caching routes..."
+echo "Caching route"
 php artisan route:cache
 
-echo "🎨 Caching views..."
+echo "Caching view"
 php artisan view:cache
 
-echo "📡 Caching events..."
+echo "Caching event"
 php artisan event:cache
 
-echo "✅ Application performance caching complete!"
+echo "Application performance caching comple"
