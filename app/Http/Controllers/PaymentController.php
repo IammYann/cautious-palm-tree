@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SafeCache;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
@@ -285,9 +286,7 @@ class PaymentController extends Controller
         }
 
         if ($purchaseSuccessful) {
-            \Illuminate\Support\Facades\Cache::forget('all_products');
-            \Illuminate\Support\Facades\Cache::forget('admin_products');
-            \Illuminate\Support\Facades\Cache::forget('product_' . $order->product_id);
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $order->product_id]);
 
             \App\Events\productpurchase::dispatch($order);
 
@@ -579,9 +578,7 @@ class PaymentController extends Controller
             }
 
             if ($purchaseSuccessful) {
-                \Illuminate\Support\Facades\Cache::forget('all_products');
-                \Illuminate\Support\Facades\Cache::forget('admin_products');
-                \Illuminate\Support\Facades\Cache::forget('product_' . $order->product_id);
+                SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $order->product_id]);
 
                 \App\Events\productpurchase::dispatch($order);
 
@@ -851,9 +848,7 @@ class PaymentController extends Controller
         }
 
         if ($purchaseSuccessful) {
-            Cache::forget('all_products');
-            Cache::forget('admin_products');
-            Cache::forget('product_' . $order->product_id);
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $order->product_id]);
 
             \App\Events\productpurchase::dispatch($order);
 

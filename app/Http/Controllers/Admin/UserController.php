@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Illuminate\Support\Facades\Cache;
+use App\Services\SafeCache;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,7 +14,7 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = Cache::remember('all_users', 3600, function() {
+        $users = SafeCache::remember(['users'], 'all_users', 3600, function() {
             return User::all();
         });
         
@@ -63,7 +63,7 @@ class UserController extends Controller
     public function promote(User $user)
     {
         $user->update(['role' => 'admin']);
-        Cache::forget('all_users');
+        SafeCache::flushTags(['users'], ['all_users']);
         return redirect()->route('admin.users.index')->with('success', $user->name . ' has been promoted to admin!');
     }
 
@@ -78,7 +78,7 @@ class UserController extends Controller
         }
 
         $user->update(['role' => 'user']);
-        Cache::forget('all_users');
+        SafeCache::flushTags(['users'], ['all_users']);
         return redirect()->route('admin.users.index')->with('success', $user->name . ' has been demoted to user!');
     }
 }

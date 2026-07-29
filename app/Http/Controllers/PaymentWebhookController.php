@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SafeCache;
 use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -167,9 +168,7 @@ class PaymentWebhookController extends Controller
         }
 
         if ($purchaseSuccessful) {
-            Cache::forget('all_products');
-            Cache::forget('admin_products');
-            Cache::forget('product_' . $order->product_id);
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $order->product_id]);
 
             \App\Events\productpurchase::dispatch($order);
 
@@ -332,9 +331,7 @@ class PaymentWebhookController extends Controller
         }
 
         if ($purchaseSuccessful) {
-            Cache::forget('all_products');
-            Cache::forget('admin_products');
-            Cache::forget('product_' . $order->product_id);
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $order->product_id]);
 
             \App\Events\productpurchase::dispatch($order);
 
@@ -474,9 +471,7 @@ class PaymentWebhookController extends Controller
         }
 
         if ($purchaseSuccessful) {
-            Cache::forget('all_products');
-            Cache::forget('admin_products');
-            Cache::forget('product_' . $order->product_id);
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $order->product_id]);
 
             \App\Events\productpurchase::dispatch($order);
 

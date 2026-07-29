@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Cache;
+use App\Services\SafeCache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Product;
@@ -16,7 +16,7 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $products = Cache::remember('all_products', 3600, function() {
+        $products = SafeCache::remember(['products'], 'all_products', 3600, function() {
             return Product::where('is_available', true)->with('user')->get();
         });
     
@@ -53,8 +53,7 @@ class ProductController extends Controller
             ]);
 
             // Invalidate related caches
-            Cache::forget('all_products');
-            Cache::forget('admin_products');
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products']);
 
             DB::commit();
 
@@ -76,7 +75,7 @@ class ProductController extends Controller
     public function show(Product $product)
     {
     // Cache individual product for 60 minutes
-        $product = Cache::remember('product_' . $product->id, 3600, function() use ($product) {
+        $product = SafeCache::remember(['products'], 'product_' . $product->id, 3600, function() use ($product) {
             return $product->load('user');
         });
         
@@ -108,9 +107,7 @@ class ProductController extends Controller
             $product->update($validated);
 
             // Invalidate related caches
-            Cache::forget('all_products');
-            Cache::forget('admin_products');
-            Cache::forget('product_' . $product->id);
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $product->id]);
 
             DB::commit();
 
@@ -145,9 +142,7 @@ class ProductController extends Controller
             $product->delete();
 
             // Invalidate related caches
-            Cache::forget('all_products');
-            Cache::forget('admin_products');
-            Cache::forget('product_' . $productId);
+            SafeCache::flushTags(['products'], ['all_products', 'admin_products', 'product_' . $productId]);
 
             DB::commit();
 
@@ -163,13 +158,14 @@ class ProductController extends Controller
                 ->with('error', 'Failed to delete product. Please try again.');
         }
     }
+
     /**
      * Display admin product listing
      */
     public function adminIndex()
     {
     // Cache for 30 minutes
-        $products = Cache::remember('admin_products', 1800, function() {
+        $products = SafeCache::remember(['products'], 'admin_products', 1800, function() {
             return Product::all();
         });
         
