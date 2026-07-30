@@ -28,6 +28,10 @@ Route::middleware('guest')->group(function () {
     // Google Sign-In
     Route::get('/auth/google', [SocialiteController::class, 'redirectToGoogle'])->name('auth.google');
     Route::get('/auth/google/callback', [SocialiteController::class, 'handleGoogleCallback'])->name('auth.google.callback');
+
+    // Facebook Sign-In
+    Route::get('/auth/facebook', [SocialiteController::class, 'redirectToFacebook'])->name('auth.facebook');
+    Route::get('/auth/facebook/callback', [SocialiteController::class, 'handleFacebookCallback'])->name('auth.facebook.callback');
 });
 
 // Public Product Viewing (anyone can view)

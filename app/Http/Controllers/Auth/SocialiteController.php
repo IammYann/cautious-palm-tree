@@ -68,4 +68,56 @@ class SocialiteController extends Controller
 
         return redirect()->route('dashboard')->with('success', 'Account created with Google!');
     }
+
+    /**
+     * Redirect the user to the Facebook authentication page.
+     */
+    public function redirectToFacebook()
+    {
+        return Socialite::driver('facebook')->scopes(['email', 'public_profile'])->redirect();
+    }
+
+    /**
+     * Handle the Facebook callback and authenticate/create the user.
+     */
+    public function handleFacebookCallback()
+    {
+        try {
+            $facebookUser = Socialite::driver('facebook')->user();
+        } catch (\Exception $e) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Facebook authentication failed. Please try again.',
+            ]);
+        }
+
+        $user = User::where('facebook_id', $facebookUser->getId())->first();
+
+        if ($user) {
+            Auth::login($user);
+            return redirect()->intended(route('dashboard'))->with('success', 'Logged in with Facebook!');
+        }
+
+        $existingUser = User::where('email', $facebookUser->getEmail())->first();
+
+        if ($existingUser) {
+            $existingUser->update([
+                'facebook_id' => $facebookUser->getId(),
+            ]);
+
+            Auth::login($existingUser);
+            return redirect()->intended(route('dashboard'))->with('success', 'Facebook account linked! Logged in successfully.');
+        }
+
+        $newUser = User::create([
+            'name' => $facebookUser->getName(),
+            'email' => $facebookUser->getEmail(),
+            'password' => null,
+            'facebook_id' => $facebookUser->getId(),
+            'role' => 'user',
+        ]);
+
+        Auth::login($newUser);
+
+        return redirect()->route('dashboard')->with('success', 'Account created with Facebook!');
+    }
 }
