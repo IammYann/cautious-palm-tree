@@ -70,14 +70,27 @@
             </a>
 
             <a href="{{ route('auth.facebook') }}"
-               style="display: flex; align-items: center; justify-content: center; gap: 10px;
-                      width: 100%; height: 44px; border: 1px solid #ddd; border-radius: 4px;
-                      background: #1877F2; color: #fff; font-size: 14px; font-weight: 500;
-                      text-decoration: none; cursor: pointer; transition: background 0.2s; margin-top: 10px;"
-               onmouseover="this.style.background='#166eab'"
-               onmouseout="this.style.background='#1877F2'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="white" d="M12 2.04c-5.52 0-10 4.48-10 10s4.48 10 10 10s10-4.48 10-10S17.52 2.04 12 2.04zM16.5 8.25h-2.25V7.5c0-.41.34-.75.75-.75h1.5V4.5h-2.25C12.31 4.5 11 5.81 11 7.25V8.25H9.75v2.25H11v6h2.25v-6H15l.75-2.25h-2.25v-.75z"/></svg>
-                Sign in with Facebook
+                style="display: flex; align-items: center; justify-content: center; gap: 10px;
+                        width: 100%; height: 44px; border: 1px solid #ddd; border-radius: 4px;
+                        background: #1877F2; color: #fff; font-size: 14px; font-weight: 500;
+                        text-decoration: none; cursor: pointer; transition: background 0.2s; margin-top: 10px;"
+                onmouseover="this.style.background='#166eab'"
+                onmouseout="this.style.background='#1877F2'">
+
+                <div style="
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 100%;
+                    background: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;">
+                    <img src="{{ asset('images.jpg') }}"
+                        alt="Facebook"
+                        style="width: 28px; height: 28px; border-radius: 100%;">
+                </div>
+
+                <span>Sign in with Facebook</span>
             </a>
         </form>
     </div>
