@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\IsAdmin::class,
+            'delivery' => \App\Http\Middleware\IsDelivery::class,
             'redis.throttle' => \App\Http\Middleware\ThrottleRequestsRedis::class,
         ]);
     })

@@ -76,6 +76,11 @@
         color: var(--secondary-color);
     }
 
+    .badge-delivery {
+        background-color: #e0f2f1;
+        color: #00796b;
+    }
+
     .actions-cell {
         display: flex;
         gap: 8px;
@@ -107,12 +112,15 @@
                         <td style="text-align: center;">
                             @if($user->role === 'admin')
                                 <span class="badge badge-admin">Admin</span>
+                            @elseif($user->role === 'delivery')
+                                <span class="badge badge-delivery">Delivery</span>
                             @else
                                 <span class="badge badge-user">User</span>
                             @endif
                         </td>
                         <td>
                             <div class="actions-cell">
+                                <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Edit</a>
                                 @if($user->role === 'user')
                                     <!-- Promote button -->
                                     <form action="{{ route('admin.users.promote', $user->id) }}" method="POST" style="margin: 0; padding: 0; background: none; box-shadow: none;">

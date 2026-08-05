@@ -73,13 +73,19 @@ Route::middleware('auth')->group(function () {
 
 // Admin Routes (only for admins)
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    
+
     // Product Management
     Route::resource('products', ProductController::class)->except(['index', 'show']);
     Route::get('/products', [ProductController::class, 'adminIndex'])->name('products.index');
-    
+
     // User Management
     Route::resource('users', UserController::class);
     Route::put('/users/{user}/promote', [UserController::class, 'promote'])->name('users.promote');
     Route::put('/users/{user}/demote', [UserController::class, 'demote'])->name('users.demote');
+});
+
+// Delivery Routes (only for delivery)
+Route::middleware(['auth', 'delivery'])->prefix('delivery')->name('delivery.')->group(function () {
+    Route::get('/orders', [\App\Http\Controllers\Delivery\DashboardController::class, 'index'])->name('orders');
+    Route::post('/orders/{order}/deliver', [\App\Http\Controllers\Delivery\OrderDeliveryController::class, 'deliver'])->name('orders.deliver');
 });

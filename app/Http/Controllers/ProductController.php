@@ -164,10 +164,10 @@ class ProductController extends Controller
      */
     public function adminIndex()
     {
-    // Cache for 30 minutes
-        $products = SafeCache::remember(['products'], 'admin_products', 1800, function() {
-            return Product::all();
-        });
+        // Load products with their latest order (and deliverer) so we can show delivery status
+        $products = Product::with(['orders' => function ($query) {
+            $query->with('deliverer')->latest();
+        }])->get();
         
         return view('admin.products.index', compact('products'));
     }

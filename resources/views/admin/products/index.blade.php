@@ -66,6 +66,21 @@
         gap: 8px;
         justify-content: center;
     }
+
+    .badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+    .badge-delivered  { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .badge-shipped    { background: #fff3e0; color: #ff9358; border: 1px solid #ffe0b2; }
+    .badge-notdelivered { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+    .badge-pending    { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+    .badge-failed     { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+    .badge-none       { background: #f5f5f5; color: #9e9e9e; border: 1px solid #e0e0e0; }
 </style>
 
 <div class="admin-header">
@@ -78,15 +93,22 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th style="width: 25%;">Product Name</th>
-                    <th style="width: 35%;">Description</th>
-                    <th style="width: 15%; text-align: right;">Price</th>
-                    <th style="width: 13%; text-align: center;">Status</th>
-                    <th style="width: 12%; text-align: center;">Actions</th>
+                    <th style="width: 20%;">Product Name</th>
+                    <th style="width: 25%;">Description</th>
+                    <th style="width: 10%; text-align: right;">Price</th>
+                    <th style="width: 10%; text-align: center;">Availability</th>
+                    <th style="width: 12%; text-align: center;">Delivery Status</th>
+                    <th style="width: 12%; text-align: center;">Handled By</th>
+                    <th style="width: 11%; text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($products as $product)
+                    @php
+                        $latestOrder = $product->orders->first();
+                        $deliveryStatus = $latestOrder ? $latestOrder->status : null;
+                        $handledBy = ($latestOrder && $latestOrder->deliverer) ? $latestOrder->deliverer->name : null;
+                    @endphp
                     <tr>
                         <td style="font-weight: 500;">{{ $product->name }}</td>
                         <td style="color: var(--grey-color);">{{ Str::limit($product->description, 80) }}</td>
@@ -97,6 +119,24 @@
                             @else
                                 <span style="background: #ffebee; color: #c62828; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; border: 1px solid #ffcdd2;">Sold</span>
                             @endif
+                        </td>
+                        <td style="text-align: center;">
+                            @if($deliveryStatus === 'delivered')
+                                <span class="badge badge-delivered">Delivered</span>
+                            @elseif($deliveryStatus === 'shipped')
+                                <span class="badge badge-shipped">Shipped</span>
+                            @elseif($deliveryStatus === 'notdelivered')
+                                <span class="badge badge-notdelivered">Not Delivered</span>
+                            @elseif($deliveryStatus === 'pending')
+                                <span class="badge badge-pending">Pending</span>
+                            @elseif($deliveryStatus === 'failed')
+                                <span class="badge badge-failed">Failed</span>
+                            @else
+                                <span class="badge badge-none">No Order</span>
+                            @endif
+                        </td>
+                        <td style="text-align: center; color: {{ $handledBy ? '#222' : 'var(--grey-color)' }};">
+                            {{ $handledBy ?? '—' }}
                         </td>
                         <td>
                             <div class="actions-cell">

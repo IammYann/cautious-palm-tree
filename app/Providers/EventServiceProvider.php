@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use App\Models\User;
+use App\Observers\UserObserver;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -14,6 +16,11 @@ class EventServiceProvider extends ServiceProvider
         \App\Events\productpurchase::class => [
             \App\Listeners\SendPurchaseNotificationEmail::class,
         ],
+
+        \App\Events\OrderDelivered::class => [
+            \App\Listeners\SendBuyerDeliveryNotification::class,
+            \App\Listeners\SendAdminDeliveryNotification::class,
+        ],
     ];
 
     /**
@@ -22,5 +29,7 @@ class EventServiceProvider extends ServiceProvider
     public function boot(): void
     {
         parent::boot();
+
+        User::observe(UserObserver::class);
     }
 }

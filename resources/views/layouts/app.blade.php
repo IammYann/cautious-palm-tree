@@ -141,11 +141,20 @@
 <body>
     <nav>
         <div>
-            <a href="{{ route('products.index') }}">Products</a>
+            <a href="{{ route('dashboard') }}">Home</a>
+            
+            
         </div>
         <div class="nav-right">
             @auth
                 <span>{{ auth()->user()->name }}</span>
+
+                @if(!auth()->check() || auth()->user()->role !== 'delivery')
+                    <a href="{{ route('products.index') }}">Products</a>
+                @endif
+                @if(auth()->check() && auth()->user()->role === 'delivery')
+                    <a href="{{ route('delivery.orders') }}">Deliveries</a>
+                @endif
                 
                 @if(auth()->user()->role === 'admin')
                     <a href="{{ route('admin.products.index') }}">Manage Products</a>

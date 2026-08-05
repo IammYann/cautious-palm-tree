@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations — expand status enum to include refund statuses.
+     * Run the migrations — expand status enum to include refund and delivery statuses.
      *
      * SQLite's ALTER TABLE cannot modify columns, so we recreate the table.
      */

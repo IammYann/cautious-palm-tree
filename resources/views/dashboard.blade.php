@@ -34,6 +34,12 @@
             <h2 style="color: #2c3e50;">Admin Panel</h2>
             <p style="color: #7f8c8d;">You have full access to manage products and users.</p>
         </div>
+    @elseif(auth()->user()->role== 'delivery')
+        <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #27ae60;">
+            <h2 style="color: #2c3e50; margin-bottom: 1rem;">Your Orders</h2>
+            <p style="color: #7f8c8d; margin-bottom: 1rem;">Manage the orders assigned to you for delivery.</p>
+            <a href="{{ route('delivery.orders') }}" class="btn btn-success">View Your Orders</a>
+        </div>
     @else
         <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #27ae60;">
             <h2 style="color: #2c3e50; margin-bottom: 1rem;">Browse Products</h2>

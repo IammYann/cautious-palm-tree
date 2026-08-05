@@ -20,6 +20,7 @@ class Order extends Model
         'transaction_uuid',
         'status',
         'payment_date',
+        'deliverer_id',
     ];
 
     protected $casts = [
@@ -43,11 +44,19 @@ class Order extends Model
     }
 
     /**
+     * Get the deliverer that shipped/delivered this order
+     */
+    public function deliverer()
+    {
+        return $this->belongsTo(User::class, 'deliverer_id');
+    }
+
+    /**
      * Check if order is completed
      */
     public function isCompleted()
     {
-        return $this->status === 'completed';
+        return in_array($this->status, ['notdelivered', 'shipped', 'delivered']);
     }
 
     /**
@@ -58,12 +67,12 @@ class Order extends Model
         try {
             $this->update([
                 'transaction_id' => $transactionId,
-                'status' => 'completed',
+                'status' => 'notdelivered',
                 'payment_date' => now(),
             ]);
-            Log::info('Order marked as completed', ['order_id' => $this->id, 'transaction_id' => $transactionId]);
+            Log::info('Order marked as notdelivered', ['order_id' => $this->id, 'transaction_id' => $transactionId]);
         } catch (Throwable $e) {
-            Log::error('Failed to mark order as completed', [
+            Log::error('Failed to mark order as notdelivered', [
                 'order_id' => $this->id,
                 'error' => $e->getMessage(),
                 'exception' => $e,
