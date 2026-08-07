@@ -140,8 +140,10 @@
                         </td>
                         <td>
                             <div class="actions-cell">
-                                <a href="{{ route('admin.products.edit', $product->id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Edit</a>
-
+                                @if($product->is_available)
+                                    <a href="{{ route('admin.products.edit', $product->id) }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Edit</a>
+                                @else
+                                @endif
                                 <form action="{{ route('admin.products.destroy', $product->id) }}" method="POST" style="margin: 0; padding: 0; background: none; box-shadow: none;" onsubmit="return confirm('Are you sure you want to delete this product?');">
                                     @csrf
                                     @method('DELETE')

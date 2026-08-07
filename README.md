@@ -159,3 +159,20 @@ See PurchaseController.php:97.
 6. Cache tags for clean invalidation You manually Cache::forget(...) in 4 places (ProductController.php:56,111,148). Use Cache::tags(['products'])->remember(...) + Cache::tags('products')->flush() for one-line invalidation.
 
 7. Throttle Limitting Using redis
+
+## Work Completed
+
+- **Core models:** Implemented `User`, `Product`, and `Order` models under `app/Models`.
+- **Payment integrations:** Config and callback handling added for eSewa, Khalti, and FonePay (see `config/esewa.php`, `config/khalti.php`, `config/fonepay.php`).
+- **Events & listeners:** Added the `productpurchase` event and listeners (see `app/Events/productpurchase.php` and `app/Listeners`).
+- **Mails:** Notification and transactional mails included: `PurchaseNotificationMail`, `PurchaseThankYouMail`, `AdminDeliveryNotificationMail`, `BuyerDeliveryNotificationMail` (see `app/Mail`).
+- **Background jobs:** `ProcessOrderRefundJob` implemented in `app/Jobs`.
+- **Observers & policies:** `UserObserver` and `ProductPolicy` are present to handle model lifecycle and authorization.
+- **Services:** `SafeCache` service added under `app/Services` for caching helpers.
+- **Database:** Migrations and factories for users, products, and orders are included (`database/migrations`, `database/factories`).
+- **Testing:** Test scaffolding exists in `tests/` with `TestCase.php`.
+- **Frontend tooling:** Vite + npm integration with `vite.config.js` and `package.json`.
+- **Dev tools & scripts:** `artisan`, `deploy.sh`, and helper scripts are in the repo root.
+- **Developer notes & TODOs:** README includes important operational notes and TODOs (payment idempotency guard, Redis-backed stock counters, cache tagging, rate limits, real-time admin notifications). These are kept near the bottom for quick reference.
+
+If you'd like, I can convert these into a formal changelog section with dates and PR references, or update specific items to reflect exact commit hashes. Tell me which format you prefer.
